@@ -612,8 +612,9 @@
             const hasMediaDevices = !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia);
             
             if (!isSecure || !hasMediaDevices) {
-                sandboxMode = true;
-                document.getElementById('sandboxBanner').classList.remove('hidden');
+                console.warn('⚠️ Secure context or MediaDevices not available, but not enabling sandbox mode');
+                // sandboxMode = true; // Отключаем автоматический sandbox mode
+                // document.getElementById('sandboxBanner').classList.remove('hidden');
             }
             
             // Update test panel
@@ -785,11 +786,12 @@
                 // Показываем опцию загрузки файла
                 document.getElementById('uploadControls').classList.remove('hidden');
                 
-                // Активируем sandbox режим только если это не проблема с разрешениями
-                if (error.name !== 'NotAllowedError' && error.name !== 'NotFoundError') {
-                    sandboxMode = true;
-                    document.getElementById('sandboxBanner').classList.remove('hidden');
-                }
+                // НЕ активируем sandbox режим - пусть пользователь попробует снова
+                console.warn('⚠️ Recording error:', error.name, '- but not enabling sandbox mode');
+                // if (error.name !== 'NotAllowedError' && error.name !== 'NotFoundError') {
+                //     sandboxMode = true;
+                //     document.getElementById('sandboxBanner').classList.remove('hidden');
+                // }
             }
         }
         
@@ -918,11 +920,12 @@
                     uploadControls.classList.remove('hidden');
                 }
                 
-                // Активируем sandbox режим только если это не проблема с разрешениями
-                if (error.name !== 'NotAllowedError' && error.name !== 'NotFoundError') {
-                    sandboxMode = true;
-                    document.getElementById('sandboxBanner').classList.remove('hidden');
-                }
+                // НЕ активируем sandbox режим - пусть пользователь попробует снова
+                console.warn('⚠️ Recording error:', error.name, '- but not enabling sandbox mode');
+                // if (error.name !== 'NotAllowedError' && error.name !== 'NotFoundError') {
+                //     sandboxMode = true;
+                //     document.getElementById('sandboxBanner').classList.remove('hidden');
+                // }
             }
         }
         
