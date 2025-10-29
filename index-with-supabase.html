@@ -1,0 +1,1262 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>listen.sound.reflect.create AUDIO-FIXED</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="config.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: white;
+            color: #3f3f46;
+            line-height: 1.6;
+        }
+        
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        
+        .score-text {
+            font-size: 18px;
+            font-style: italic;
+            color: #6b7280;
+            margin-bottom: 10px;
+        }
+        
+        .card {
+            background: white;
+            border: 1px solid #e5e7eb;
+            border-radius: 16px;
+            padding: 24px;
+            margin-bottom: 20px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        }
+        
+        .card-title {
+            font-size: 18px;
+            font-weight: 600;
+            text-align: center;
+            margin-bottom: 16px;
+        }
+        
+        .btn {
+            background: #3f3f46;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 16px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: background 0.2s;
+            width: 100%;
+            margin-bottom: 12px;
+        }
+        
+        .btn:hover {
+            background: #52525b;
+        }
+        
+        .btn-secondary {
+            background: #f3f4f6;
+            color: #3f3f46;
+        }
+        
+        .btn-secondary:hover {
+            background: #e5e7eb;
+        }
+        
+        .btn-danger {
+            background: #ef4444;
+        }
+        
+        .btn-danger:hover {
+            background: #dc2626;
+        }
+        
+        .btn-small {
+            padding: 8px 16px;
+            font-size: 14px;
+            width: auto;
+        }
+        
+        .text-center {
+            text-align: center;
+        }
+        
+        .text-sm {
+            font-size: 14px;
+            color: #6b7280;
+        }
+        
+        .mb-4 {
+            margin-bottom: 16px;
+        }
+        
+        .mt-4 {
+            margin-top: 16px;
+        }
+        
+        .flex {
+            display: flex;
+        }
+        
+        .gap-3 {
+            gap: 12px;
+        }
+        
+        .justify-center {
+            justify-content: center;
+        }
+        
+        .grid {
+            display: grid;
+            gap: 12px;
+        }
+        
+        .grid-2 {
+            grid-template-columns: 1fr 1fr;
+        }
+        
+        .audio-player {
+            width: 100%;
+            margin-top: 8px;
+        }
+        
+        .textarea {
+            width: 100%;
+            min-height: 120px;
+            padding: 12px;
+            border: 1px solid #e5e7eb;
+            border-radius: 16px;
+            font-family: inherit;
+            resize: vertical;
+        }
+        
+        .input {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #e5e7eb;
+            border-radius: 16px;
+            font-family: inherit;
+        }
+        
+        .checkbox {
+            margin-right: 8px;
+        }
+        
+        .alert {
+            background: #fef3c7;
+            border: 1px solid #f59e0b;
+            border-radius: 12px;
+            padding: 12px;
+            margin-bottom: 20px;
+            font-size: 14px;
+            color: #92400e;
+        }
+        
+        .alert-success {
+            background: #dcfce7;
+            border: 1px solid #16a34a;
+            color: #166534;
+        }
+        
+        .hidden {
+            display: none;
+        }
+        
+        .session-summary {
+            margin-top: 40px;
+            padding-top: 20px;
+            border-top: 1px solid #e5e7eb;
+        }
+        
+        .fragment {
+            background: #f9fafb;
+            border: 1px solid #e5e7eb;
+            border-radius: 12px;
+            padding: 16px;
+            margin-bottom: 12px;
+        }
+        
+        .fragment-title {
+            font-size: 14px;
+            font-weight: 500;
+            margin-bottom: 8px;
+        }
+        
+        .fragment-audio {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+        }
+        
+        .audio-label {
+            font-size: 12px;
+            color: #6b7280;
+            margin-bottom: 4px;
+        }
+        
+        .loading {
+            opacity: 0.6;
+            pointer-events: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <div class="score-text">score</div>
+            <div id="scoreLine" class="score-text">Loading...</div>
+        </div>
+        
+        <!-- Supabase Connection Status -->
+        <div id="connectionStatus" class="alert hidden">
+            <strong>Database:</strong> <span id="statusText">Connecting...</span>
+        </div>
+        
+        <!-- Telegram Info -->
+        <div id="telegramInfo" class="text-sm text-center hidden">
+            Running in browser preview. In Telegram, this page opens inside the bot as a Mini App.
+        </div>
+        
+        <!-- Sandbox Banner -->
+        <div id="sandboxBanner" class="alert hidden">
+            <strong>Sandbox mode (no live mic).</strong><br>
+            Use simulated recordings or upload audio files to continue the flow.
+        </div>
+        
+        <!-- Intro Phase -->
+        <div id="introPhase" class="card">
+            <div class="text-center">
+                <button class="btn" onclick="startNewSession()">Listen</button>
+                <div class="text-sm mt-4">
+                    <button class="btn btn-secondary btn-small" onclick="enableMicrophone()">Enable microphone</button>
+                    <div id="micStatus" class="text-sm">(optional — enables live recording if allowed)</div>
+                </div>
+            </div>
+            <div id="testPanel" class="mt-4"></div>
+        </div>
+        
+        <!-- Listen Choice Phase -->
+        <div id="listenChoicePhase" class="card hidden">
+            <div class="card-title">Listen</div>
+            <div class="text-sm text-center mb-4">Choose the source of listening</div>
+            <div class="grid grid-2">
+                <button class="btn" onclick="chooseListenEnvironment()">Environment</button>
+                <button class="btn btn-secondary" onclick="chooseListenPast()">Past capsule</button>
+            </div>
+            <div id="reflectButton" class="text-center mt-4 hidden">
+                <button class="btn btn-secondary btn-small" onclick="setPhase('reflect')">Reflect</button>
+            </div>
+        </div>
+        
+        <!-- Listening Environment Phase -->
+        <div id="listeningPhase" class="card hidden">
+            <div class="card-title">Listening…</div>
+            <div class="text-center">
+                <div id="recordingStatus" class="text-sm mb-4">(sandbox recording)</div>
+                <div class="flex gap-3 justify-center">
+                    <button id="recordBtn" class="btn" onclick="startRecording()">🎤 Record</button>
+                    <button id="soundBtn" class="btn hidden" onclick="goSoundFromListen()">Sound</button>
+                </div>
+                <audio id="listenAudio" class="audio-player hidden" controls></audio>
+                <div id="uploadControls" class="mt-4 hidden">
+                    <input type="file" accept="audio/*" onchange="uploadAudio(this, 'listen')" style="margin-bottom: 12px;">
+                    <button class="btn btn-secondary btn-small" onclick="createSilentAudio('listen')">Use silent sample</button>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Sound Phase -->
+        <div id="soundPhase" class="card hidden">
+            <div class="card-title">Sound back</div>
+            <div class="text-center">
+                <div class="text-sm mb-4">(your response to what you heard)</div>
+                <div id="soundRecordingStatus" class="text-sm mb-4">(ready to record)</div>
+                <div class="flex gap-3 justify-center">
+                    <button id="soundRecordBtn" class="btn" onclick="startSoundRecording()">🎤 Record</button>
+                    <button id="soundContinueBtn" class="btn hidden" onclick="finishSound()">Continue</button>
+                </div>
+                <audio id="soundAudio" class="audio-player hidden" controls></audio>
+                <div id="soundUploadControls" class="mt-4 hidden">
+                    <input type="file" accept="audio/*" onchange="uploadAudio(this, 'sound')" style="margin-bottom: 12px;">
+                    <button class="btn btn-secondary btn-small" onclick="createSilentAudio('sound')">Use silent sample</button>
+                </div>
+                <div id="soundNavigation" class="mt-6 flex gap-3 justify-center hidden">
+                    <button class="btn btn-secondary btn-small" onclick="setPhase('listenChoice')">Listen again</button>
+                    <button class="btn btn-small" onclick="setPhase('reflect')">Reflect</button>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Reflect Phase -->
+        <div id="reflectPhase" class="card hidden">
+            <div class="card-title">Reflect</div>
+            <textarea id="reflectionText" class="textarea" placeholder="Write what you noticed, felt, or became aware of."></textarea>
+            <div class="text-center mt-4">
+                <button class="btn" onclick="setPhase('create')">Create</button>
+            </div>
+        </div>
+        
+        <!-- Create Phase -->
+        <div id="createPhase" class="card hidden">
+            <div class="card-title">Write your own score</div>
+            <div class="text-sm text-center mb-4">(one line)</div>
+            <input id="userScoreTitle" class="input" placeholder="e.g., Breathe with the echo of your own steps.">
+            <div class="flex items-center mt-4">
+                <input type="checkbox" id="isPublic" class="checkbox" checked>
+                <label for="isPublic" class="text-sm">Add to the collective pool (read-only)</label>
+            </div>
+            <div class="text-center mt-4">
+                <button id="saveBtn" class="btn" onclick="saveCapsule()">Save capsule</button>
+            </div>
+        </div>
+        
+        <!-- Done Phase -->
+        <div id="donePhase" class="card hidden">
+            <div class="card-title">✨ Quiet confirmation</div>
+            <div class="text-center">
+                <p id="confirmMessage">Your score has been added to the Listening Archive.</p>
+                <p id="publicMessage" class="text-sm hidden">It is now part of the collective pool.</p>
+                <div class="flex gap-3 justify-center mt-4">
+                    <button class="btn btn-secondary btn-small" onclick="setPhase('listenChoice')">Start new loop</button>
+                    <button class="btn btn-small" onclick="newSession()">New session</button>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Session Summary -->
+        <div id="sessionSummary" class="session-summary hidden">
+            <div class="text-sm uppercase tracking-wide" style="color: #9ca3af; margin-bottom: 8px;">Current session</div>
+            <div id="fragmentsList"></div>
+        </div>
+    </div>
+
+    <script>
+        // ========================================
+        // SUPABASE CONFIGURATION
+        // ========================================
+        
+        let supabase = null;
+        let supabaseConnected = false;
+        let appConfig = null;
+        
+        // Initialize Supabase
+        async function initializeSupabase() {
+            try {
+                // Получаем конфигурацию из .env файла
+                appConfig = await initializeConfig();
+                const validation = validateConfig(appConfig);
+                
+                if (!validation.isValid) {
+                    console.error('Configuration errors:', validation.errors);
+                    showConnectionStatus(`Configuration errors: ${validation.errors.join(', ')}`, 'error');
+                    return false;
+                }
+                
+                supabase = window.supabase.createClient(
+                    appConfig.SUPABASE.URL, 
+                    appConfig.SUPABASE.ANON_KEY
+                );
+                
+                showConnectionStatus('Connected to database', 'success');
+                supabaseConnected = true;
+                return true;
+            } catch (error) {
+                console.error('Supabase initialization failed:', error);
+                showConnectionStatus('Database connection failed', 'error');
+                return false;
+            }
+        }
+        
+        function showConnectionStatus(message, type) {
+            const statusEl = document.getElementById('connectionStatus');
+            const textEl = document.getElementById('statusText');
+            
+            textEl.textContent = message;
+            statusEl.className = type === 'success' ? 'alert alert-success' : 'alert';
+            statusEl.classList.remove('hidden');
+            
+            if (type === 'success') {
+                setTimeout(() => {
+                    statusEl.classList.add('hidden');
+                }, 3000);
+            }
+        }
+        
+        // Set user context for RLS
+        async function setUserContext(userId) {
+            if (!supabaseConnected) return;
+            
+            try {
+                await supabase.rpc('set_config', {
+                    setting_name: 'app.current_user_id',
+                    setting_value: userId,
+                    is_local: false
+                });
+            } catch (error) {
+                console.warn('Could not set user context:', error);
+            }
+        }
+        
+        // ========================================
+        // DATABASE FUNCTIONS
+        // ========================================
+        
+        // Get random score from database
+        async function getRandomScore() {
+            if (!supabaseConnected) {
+                return { text: "Walk so silently that the bottoms of your feet become ears." };
+            }
+            
+            try {
+                const { data, error } = await supabase
+                    .from('scores')
+                    .select('*')
+                    .eq('is_public', true)
+                    .order('usage_count', { ascending: true })
+                    .limit(10);
+                
+                if (error) throw error;
+                
+                if (data && data.length > 0) {
+                    const randomIndex = Math.floor(Math.random() * data.length);
+                    return data[randomIndex];
+                } else {
+                    return { text: "Walk so silently that the bottoms of your feet become ears." };
+                }
+            } catch (error) {
+                console.error('Error fetching score:', error);
+                return { text: "Walk so silently that the bottoms of your feet become ears." };
+            }
+        }
+        
+        // Save capsule to database
+        async function saveCapsuleToDatabase(capsuleData) {
+            if (!supabaseConnected) {
+                console.warn('Supabase not connected, saving to localStorage');
+                return saveCapsuleToLocal(capsuleData);
+            }
+            
+            try {
+                // First, save the final score if user created one
+                let finalScoreId = null;
+                if (capsuleData.userScoreTitle && capsuleData.userScoreTitle.trim()) {
+                    const { data: scoreData, error: scoreError } = await supabase
+                        .from('scores')
+                        .insert({
+                            text: capsuleData.userScoreTitle.trim(),
+                            author_user_id: currentUserId,
+                            source: 'user_created',
+                            is_public: capsuleData.isPublic
+                        })
+                        .select()
+                        .single();
+                    
+                    if (scoreError) throw scoreError;
+                    finalScoreId = scoreData.id;
+                }
+                
+                // Save capsule
+                const { data: capsule, error: capsuleError } = await supabase
+                    .from('capsules')
+                    .insert({
+                        user_id: currentUserId,
+                        initial_score_id: currentSession.initialScoreId,
+                        final_score_id: finalScoreId,
+                        is_public: capsuleData.isPublic,
+                        transport: inTelegram ? 'telegram_webapp' : 'web'
+                    })
+                    .select()
+                    .single();
+                
+                if (capsuleError) throw capsuleError;
+                
+                // Save fragments and reflections
+                for (let i = 0; i < fragments.length; i++) {
+                    const fragment = fragments[i];
+                    
+                    // Save fragment
+                    const { data: fragmentData, error: fragmentError } = await supabase
+                        .from('fragments')
+                        .insert({
+                            capsule_id: capsule.id,
+                            cycle_number: fragment.cycleNumber,
+                            listen_source: fragment.listenSource,
+                            // TODO: Save actual audio files to storage and get IDs
+                            // listen_audio_id: fragment.listenAudioId,
+                            // sound_audio_id: fragment.soundAudioId
+                        })
+                        .select()
+                        .single();
+                    
+                    if (fragmentError) throw fragmentError;
+                    
+                    // Save reflection if exists
+                    if (capsuleData.reflectionText && capsuleData.reflectionText.trim()) {
+                        const { error: reflectionError } = await supabase
+                            .from('reflections')
+                            .insert({
+                                fragment_id: fragmentData.id,
+                                text: capsuleData.reflectionText.trim(),
+                                transcription_source: 'user_typed'
+                                // TODO: Add keywords extraction
+                            });
+                        
+                        if (reflectionError) throw reflectionError;
+                    }
+                }
+                
+                showConnectionStatus('Capsule saved to database!', 'success');
+                return { id: capsule.id, idNum: capsule.created_at };
+                
+            } catch (error) {
+                console.error('Error saving to database:', error);
+                showConnectionStatus('Failed to save to database, using local storage', 'error');
+                return saveCapsuleToLocal(capsuleData);
+            }
+        }
+        
+        // ========================================
+        // EXISTING CODE (updated to use database)
+        // ========================================
+        
+        // Global state
+        let currentPhase = 'intro';
+        let fragments = [];
+        let currentListenUrl = null;
+        let currentSoundUrl = null;
+        let isRecording = false;
+        let mediaRecorder = null;
+        let chunks = [];
+        let pastCapsules = JSON.parse(localStorage.getItem('lsrc_capsules_v4') || '[]');
+        let selectedPastId = null;
+        let tg = null;
+        let inTelegram = false;
+        let sandboxMode = false; // ИСПРАВЛЕНО: было true
+        let micReady = false;
+        
+        // Отладочная информация
+        console.log('🔧 AUDIO DEBUG: sandboxMode =', sandboxMode);
+        console.log('🔧 AUDIO DEBUG: MediaDevices supported =', !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia));
+        let currentUserId = null;
+        let currentSession = {
+            initialScore: null,
+            initialScoreId: null
+        };
+        
+        // Initialize
+        document.addEventListener('DOMContentLoaded', async function() {
+            initializeTelegram();
+            await initializeSupabase();
+            await loadInitialScore();
+            updateUI();
+            runDiagnostics();
+        });
+        
+        function initializeTelegram() {
+            if (window.Telegram && window.Telegram.WebApp) {
+                tg = window.Telegram.WebApp;
+                inTelegram = true;
+                currentUserId = tg.initDataUnsafe?.user?.id?.toString() || 'anonymous';
+                document.getElementById('telegramInfo').classList.add('hidden');
+                
+                try {
+                    tg.ready();
+                    tg.expand();
+                    if (tg.setHeaderColor) {
+                        tg.setHeaderColor('secondary_bg_color');
+                    }
+                    setUserContext(currentUserId);
+                } catch (e) {
+                    console.warn('Telegram WebApp initialization failed:', e);
+                }
+            } else {
+                document.getElementById('telegramInfo').classList.remove('hidden');
+                currentUserId = 'web_user_' + Math.random().toString(36).slice(2, 10);
+                setUserContext(currentUserId);
+            }
+        }
+        
+        async function loadInitialScore() {
+            const score = await getRandomScore();
+            currentSession.initialScore = score;
+            currentSession.initialScoreId = score.id;
+            document.getElementById('scoreLine').textContent = score.text;
+        }
+        
+        async function startNewSession() {
+            await loadInitialScore();
+            setPhase('listenChoice');
+        }
+        
+        function runDiagnostics() {
+            const isSecure = window.isSecureContext || location.protocol === 'https:';
+            const hasMediaDevices = !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia);
+            
+            if (!isSecure || !hasMediaDevices) {
+                sandboxMode = true;
+                document.getElementById('sandboxBanner').classList.remove('hidden');
+            }
+            
+            // Update test panel
+            const testPanel = document.getElementById('testPanel');
+            testPanel.innerHTML = `
+                <div class="text-sm" style="color: #6b7280; margin-bottom: 8px;">Diagnostics / Tests</div>
+                <div class="grid">
+                    <div class="px-2 py-1 rounded" style="background: ${isSecure ? '#dcfce7' : '#fef2f2'}; color: ${isSecure ? '#166534' : '#dc2626'};">
+                        ${isSecure ? 'PASS' : 'FAIL'} — Secure Context
+                    </div>
+                    <div class="px-2 py-1 rounded" style="background: ${hasMediaDevices ? '#dcfce7' : '#fef2f2'}; color: ${hasMediaDevices ? '#166534' : '#dc2626'};">
+                        ${hasMediaDevices ? 'PASS' : 'FAIL'} — MediaDevices Present
+                    </div>
+                    <div class="px-2 py-1 rounded" style="background: ${supabaseConnected ? '#dcfce7' : '#fef2f2'}; color: ${supabaseConnected ? '#166534' : '#dc2626'};">
+                        ${supabaseConnected ? 'PASS' : 'FAIL'} — Database Connected
+                    </div>
+                </div>
+            `;
+        }
+        
+        function enableMicrophone() {
+            if (sandboxMode) return;
+            
+            navigator.mediaDevices.getUserMedia({ audio: true })
+                .then(() => {
+                    micReady = true;
+                    document.getElementById('micStatus').textContent = 'Microphone enabled';
+                })
+                .catch((e) => {
+                    console.warn('Microphone access denied:', e);
+                    document.getElementById('micStatus').textContent = 'Microphone access denied';
+                });
+        }
+        
+        function setPhase(phase) {
+            currentPhase = phase;
+            updateUI();
+        }
+        
+        function updateUI() {
+            // Hide all phases
+            const phases = ['introPhase', 'listenChoicePhase', 'listeningPhase', 'soundPhase', 'reflectPhase', 'createPhase', 'donePhase'];
+            phases.forEach(phase => {
+                document.getElementById(phase).classList.add('hidden');
+            });
+            
+            // Show current phase
+            document.getElementById(currentPhase + 'Phase').classList.remove('hidden');
+            
+            // Update session summary
+            if (fragments.length > 0) {
+                document.getElementById('sessionSummary').classList.remove('hidden');
+                updateSessionSummary();
+            } else {
+                document.getElementById('sessionSummary').classList.add('hidden');
+            }
+            
+            // Update reflect button visibility
+            if (fragments.length > 0) {
+                document.getElementById('reflectButton').classList.remove('hidden');
+            }
+            
+            // Update sound navigation
+            if (fragments.length > 0) {
+                document.getElementById('soundNavigation').classList.remove('hidden');
+            }
+        }
+        
+        function chooseListenEnvironment() {
+            currentListenUrl = null;
+            setPhase('listening');
+        }
+        
+        function chooseListenPast() {
+            // For simplicity, we'll skip past capsules in this version
+            alert('Past capsules feature will be available in the full version');
+            setPhase('listenChoice');
+        }
+        
+        async function startRecording() {
+            // Показать статус записи
+            document.getElementById('recordingStatus').textContent = 'Requesting microphone access...';
+            
+            // Сбрасываем sandbox режим при попытке записи
+            sandboxMode = false;
+            
+            try {
+                // Проверяем поддержку MediaRecorder
+                if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                    throw new Error('MediaRecorder not supported');
+                }
+                
+                // Запрашиваем доступ к микрофону
+                const stream = await navigator.mediaDevices.getUserMedia({ 
+                    audio: {
+                        echoCancellation: true,
+                        noiseSuppression: true,
+                        sampleRate: 44100
+                    }
+                });
+                
+                // Создаем MediaRecorder
+                const options = { mimeType: 'audio/webm;codecs=opus' };
+                if (!MediaRecorder.isTypeSupported(options.mimeType)) {
+                    options.mimeType = 'audio/webm';
+                }
+                if (!MediaRecorder.isTypeSupported(options.mimeType)) {
+                    options.mimeType = 'audio/wav'; // Fallback на WAV вместо MP4
+                }
+                
+                mediaRecorder = new MediaRecorder(stream, options);
+                chunks = [];
+                
+                mediaRecorder.ondataavailable = e => {
+                    if (e.data.size > 0) chunks.push(e.data);
+                };
+                
+                mediaRecorder.onstop = async () => {
+                    const blob = new Blob(chunks, { type: mediaRecorder.mimeType });
+                    
+                    // Создаем локальный URL для воспроизведения
+                    currentListenUrl = URL.createObjectURL(blob);
+                    document.getElementById('listenAudio').src = currentListenUrl;
+                    document.getElementById('listenAudio').classList.remove('hidden');
+                    document.getElementById('soundBtn').classList.remove('hidden');
+                    
+                    // Сохраняем в Supabase Storage
+                    try {
+                        await saveAudioToSupabase(blob, 'listen');
+                        document.getElementById('recordingStatus').textContent = '✅ Audio saved successfully';
+                    } catch (error) {
+                        console.error('Failed to save audio:', error);
+                        document.getElementById('recordingStatus').textContent = '⚠️ Audio recorded locally (save failed)';
+                    }
+                    
+                    // Останавливаем все треки
+                    stream.getTracks().forEach(track => track.stop());
+                };
+                
+                mediaRecorder.onerror = (event) => {
+                    console.error('MediaRecorder error:', event.error);
+                    document.getElementById('recordingStatus').textContent = '❌ Recording error';
+                    stream.getTracks().forEach(track => track.stop());
+                };
+                
+                // Начинаем запись
+                mediaRecorder.start(1000); // Собираем данные каждую секунду
+                isRecording = true;
+                
+                document.getElementById('recordBtn').textContent = '⏹️ Stop';
+                document.getElementById('recordBtn').onclick = stopRecording;
+                document.getElementById('recordingStatus').textContent = '🎤 Recording... (click Stop when done)';
+                
+            } catch (error) {
+                console.error('Recording setup failed:', error);
+                
+                // Показываем пользователю варианты
+                if (error.name === 'NotAllowedError') {
+                    document.getElementById('recordingStatus').innerHTML = 
+                        '❌ Microphone access denied.<br>Please allow microphone access and try again.';
+                } else if (error.name === 'NotFoundError') {
+                    document.getElementById('recordingStatus').innerHTML = 
+                        '❌ No microphone found.<br>Please connect a microphone and try again.';
+                } else {
+                    document.getElementById('recordingStatus').innerHTML = 
+                        '❌ Recording not available.<br>You can upload an audio file instead.';
+                }
+                
+                // Показываем опцию загрузки файла
+                document.getElementById('uploadControls').classList.remove('hidden');
+                
+                // Активируем sandbox режим только если это не проблема с разрешениями
+                if (error.name !== 'NotAllowedError' && error.name !== 'NotFoundError') {
+                    sandboxMode = true;
+                    document.getElementById('sandboxBanner').classList.remove('hidden');
+                }
+            }
+        }
+        
+        function stopRecording() {
+            if (mediaRecorder && isRecording) {
+                mediaRecorder.stop();
+                mediaRecorder.stream.getTracks().forEach(track => track.stop());
+                isRecording = false;
+                document.getElementById('recordBtn').textContent = '🎤 Record';
+                document.getElementById('recordBtn').onclick = startRecording;
+            }
+        }
+        
+        function goSoundFromListen() {
+            setPhase('sound');
+            currentSoundUrl = null;
+        }
+        
+        async function startSoundRecording() {
+            // Показать статус записи
+            const statusElement = document.getElementById('soundRecordingStatus') || 
+                                document.getElementById('recordingStatus');
+            if (statusElement) {
+                statusElement.textContent = 'Requesting microphone access...';
+            }
+            
+            // Сбрасываем sandbox режим при попытке записи
+            sandboxMode = false;
+            
+            try {
+                // Проверяем поддержку MediaRecorder
+                if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                    throw new Error('MediaRecorder not supported');
+                }
+                
+                // Запрашиваем доступ к микрофону
+                const stream = await navigator.mediaDevices.getUserMedia({ 
+                    audio: {
+                        echoCancellation: true,
+                        noiseSuppression: true,
+                        sampleRate: 44100
+                    }
+                });
+                
+                // Создаем MediaRecorder
+                const options = { mimeType: 'audio/webm;codecs=opus' };
+                if (!MediaRecorder.isTypeSupported(options.mimeType)) {
+                    options.mimeType = 'audio/webm';
+                }
+                if (!MediaRecorder.isTypeSupported(options.mimeType)) {
+                    options.mimeType = 'audio/wav'; // Fallback на WAV вместо MP4
+                }
+                
+                mediaRecorder = new MediaRecorder(stream, options);
+                chunks = [];
+                
+                mediaRecorder.ondataavailable = e => {
+                    if (e.data.size > 0) chunks.push(e.data);
+                };
+                
+                mediaRecorder.onstop = async () => {
+                    const blob = new Blob(chunks, { type: mediaRecorder.mimeType });
+                    
+                    // Создаем локальный URL для воспроизведения
+                    currentSoundUrl = URL.createObjectURL(blob);
+                    document.getElementById('soundAudio').src = currentSoundUrl;
+                    document.getElementById('soundAudio').classList.remove('hidden');
+                    document.getElementById('soundContinueBtn').classList.remove('hidden');
+                    
+                    // Сохраняем в Supabase Storage
+                    try {
+                        await saveAudioToSupabase(blob, 'sound');
+                        if (statusElement) {
+                            statusElement.textContent = '✅ Audio saved successfully';
+                        }
+                    } catch (error) {
+                        console.error('Failed to save sound audio:', error);
+                        if (statusElement) {
+                            statusElement.textContent = '⚠️ Audio recorded locally (save failed)';
+                        }
+                    }
+                    
+                    // Останавливаем все треки
+                    stream.getTracks().forEach(track => track.stop());
+                };
+                
+                mediaRecorder.onerror = (event) => {
+                    console.error('MediaRecorder error:', event.error);
+                    if (statusElement) {
+                        statusElement.textContent = '❌ Recording error';
+                    }
+                    stream.getTracks().forEach(track => track.stop());
+                };
+                
+                // Начинаем запись
+                mediaRecorder.start(1000);
+                isRecording = true;
+                
+                document.getElementById('soundRecordBtn').textContent = '⏹️ Stop';
+                document.getElementById('soundRecordBtn').onclick = stopSoundRecording;
+                if (statusElement) {
+                    statusElement.textContent = '🎤 Recording sound... (click Stop when done)';
+                }
+                
+            } catch (error) {
+                console.error('Sound recording setup failed:', error);
+                
+                // Показываем пользователю варианты
+                if (statusElement) {
+                    if (error.name === 'NotAllowedError') {
+                        statusElement.innerHTML = 
+                            '❌ Microphone access denied.<br>Please allow microphone access and try again.';
+                    } else if (error.name === 'NotFoundError') {
+                        statusElement.innerHTML = 
+                            '❌ No microphone found.<br>Please connect a microphone and try again.';
+                    } else {
+                        statusElement.innerHTML = 
+                            '❌ Recording not available.<br>You can upload an audio file instead.';
+                    }
+                }
+                
+                // Показываем опцию загрузки файла для sound тоже
+                const uploadControls = document.getElementById('soundUploadControls') || 
+                                     document.getElementById('uploadControls');
+                if (uploadControls) {
+                    uploadControls.classList.remove('hidden');
+                }
+                
+                // Активируем sandbox режим только если это не проблема с разрешениями
+                if (error.name !== 'NotAllowedError' && error.name !== 'NotFoundError') {
+                    sandboxMode = true;
+                    document.getElementById('sandboxBanner').classList.remove('hidden');
+                }
+            }
+        }
+        
+        function stopSoundRecording() {
+            if (mediaRecorder && isRecording) {
+                mediaRecorder.stop();
+                mediaRecorder.stream.getTracks().forEach(track => track.stop());
+                isRecording = false;
+                document.getElementById('soundRecordBtn').textContent = '🎤 Record';
+                document.getElementById('soundRecordBtn').onclick = startSoundRecording;
+            }
+        }
+        
+        function finishSound() {
+            const fragment = {
+                listenSource: 'environment',
+                listenUrl: currentListenUrl,
+                soundUrl: currentSoundUrl,
+                cycleNumber: fragments.length + 1,
+            };
+            fragments.push(fragment);
+            currentListenUrl = null;
+            currentSoundUrl = null;
+            setPhase('listenChoice');
+        }
+        
+        async function saveCapsule() {
+            const userScoreTitle = document.getElementById('userScoreTitle').value.trim();
+            const reflectionText = document.getElementById('reflectionText').value.trim();
+            const isPublic = document.getElementById('isPublic').checked;
+            
+            if (!userScoreTitle && fragments.length === 0) {
+                alert('Please write a score or create some fragments first');
+                return;
+            }
+            
+            // Show loading state
+            const saveBtn = document.getElementById('saveBtn');
+            saveBtn.textContent = 'Saving...';
+            saveBtn.classList.add('loading');
+            
+            const capsule = {
+                userScoreTitle: userScoreTitle || `Score #${Date.now()}`,
+                reflectionText,
+                isPublic,
+                fragments,
+                transport: inTelegram ? 'telegram_webapp' : 'web',
+            };
+            
+            const saved = await saveCapsuleToDatabase(capsule);
+            
+            // Update confirm message
+            document.getElementById('confirmMessage').textContent = `Your score has been added to the Listening Archive.`;
+            if (isPublic) {
+                document.getElementById('publicMessage').classList.remove('hidden');
+            }
+            
+            // Send data to Telegram if available
+            if (tg && typeof tg.sendData === 'function') {
+                try {
+                    const payload = {
+                        t: 'capsule_saved',
+                        id: saved.id,
+                        public: capsule.isPublic,
+                        score: capsule.userScoreTitle,
+                        fragments: capsule.fragments.length,
+                        createdAt: new Date().toISOString()
+                    };
+                    tg.sendData(JSON.stringify(payload));
+                } catch (e) {
+                    console.warn('sendData failed', e);
+                }
+            }
+            
+            setPhase('done');
+        }
+        
+        function newSession() {
+            fragments = [];
+            currentListenUrl = null;
+            currentSoundUrl = null;
+            document.getElementById('reflectionText').value = '';
+            document.getElementById('userScoreTitle').value = '';
+            document.getElementById('isPublic').checked = true;
+            loadInitialScore();
+            setPhase('intro');
+        }
+        
+        // Функция конвертации аудио в WebM
+        async function convertToWebM(blob) {
+            return new Promise((resolve, reject) => {
+                const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                const fileReader = new FileReader();
+                
+                fileReader.onload = async function(e) {
+                    try {
+                        const arrayBuffer = e.target.result;
+                        const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+                        
+                        // Создаем MediaRecorder для записи в WebM
+                        const mediaStream = new MediaStream();
+                        const audioTrack = audioContext.createMediaStreamDestination().stream.getAudioTracks()[0];
+                        if (audioTrack) {
+                            mediaStream.addTrack(audioTrack);
+                        }
+                        
+                        const mediaRecorder = new MediaRecorder(mediaStream, {
+                            mimeType: 'audio/webm;codecs=opus'
+                        });
+                        
+                        const chunks = [];
+                        mediaRecorder.ondataavailable = (event) => {
+                            if (event.data.size > 0) {
+                                chunks.push(event.data);
+                            }
+                        };
+                        
+                        mediaRecorder.onstop = () => {
+                            const webmBlob = new Blob(chunks, { type: 'audio/webm' });
+                            resolve(webmBlob);
+                        };
+                        
+                        // Записываем короткий отрезок для конвертации
+                        mediaRecorder.start();
+                        setTimeout(() => mediaRecorder.stop(), 100);
+                        
+                    } catch (error) {
+                        reject(error);
+                    }
+                };
+                
+                fileReader.onerror = reject;
+                fileReader.readAsArrayBuffer(blob);
+            });
+        }
+        
+        async function saveAudioToSupabase(blob, type) {
+            if (!supabase) {
+                throw new Error('Supabase not initialized');
+            }
+            
+            // Проверяем поддерживаемые форматы
+            const supportedTypes = ['audio/webm', 'audio/wav', 'audio/ogg'];
+            if (!supportedTypes.includes(blob.type)) {
+                console.warn(`Unsupported audio format: ${blob.type}. Converting to WebM...`);
+                
+                // Конвертируем в WebM если возможно
+                try {
+                    const convertedBlob = await convertToWebM(blob);
+                    blob = convertedBlob;
+                } catch (error) {
+                    throw new Error(`Audio format ${blob.type} is not supported. Please use WebM, WAV, or OGG format.`);
+                }
+            }
+            
+            // Генерируем уникальное имя файла
+            const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+            const userId = tg?.initDataUnsafe?.user?.id || 'anonymous';
+            const fileName = `${type}_${userId}_${timestamp}.webm`;
+            const filePath = `audio/${fileName}`;
+            
+            try {
+                // Загружаем файл в Supabase Storage
+                const { data: uploadData, error: uploadError } = await supabase.storage
+                    .from('audio')
+                    .upload(filePath, blob, {
+                        contentType: 'audio/webm', // Принудительно устанавливаем WebM
+                        upsert: false
+                    });
+                
+                if (uploadError) {
+                    throw uploadError;
+                }
+                
+                // Получаем публичный URL
+                const { data: urlData } = supabase.storage
+                    .from('audio')
+                    .getPublicUrl(filePath);
+                
+                const publicUrl = urlData.publicUrl;
+                
+                // Сохраняем информацию о файле в базу данных
+                const { data: dbData, error: dbError } = await supabase
+                    .from('audio_files')
+                    .insert({
+                        file_name: fileName,
+                        file_path: filePath,
+                        file_url: publicUrl,
+                        file_size: blob.size,
+                        mime_type: 'audio/webm', // Всегда WebM после конвертации
+                        user_id: userId,
+                        created_at: new Date().toISOString()
+                    })
+                    .select()
+                    .single();
+                
+                if (dbError) {
+                    console.error('Database save error:', dbError);
+                    // Файл загружен, но не записан в БД - это не критично
+                }
+                
+                console.log('Audio saved successfully:', {
+                    fileName,
+                    publicUrl,
+                    size: blob.size
+                });
+                
+                return {
+                    fileName,
+                    publicUrl,
+                    filePath,
+                    audioFileId: dbData?.id
+                };
+                
+            } catch (error) {
+                console.error('Supabase storage error:', error);
+                throw error;
+            }
+        }
+        
+        function createSilentAudio(type) {
+            // Create a simple silent audio blob
+            const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            const sampleRate = 44100;
+            const duration = 1;
+            const numFrames = sampleRate * duration;
+            const buffer = audioContext.createBuffer(1, numFrames, sampleRate);
+            
+            const blob = new Blob([buffer], { type: 'audio/wav' });
+            const url = URL.createObjectURL(blob);
+            
+            if (type === 'listen') {
+                currentListenUrl = url;
+                document.getElementById('listenAudio').src = url;
+                document.getElementById('listenAudio').classList.remove('hidden');
+                document.getElementById('soundBtn').classList.remove('hidden');
+            } else if (type === 'sound') {
+                currentSoundUrl = url;
+                document.getElementById('soundAudio').src = url;
+                document.getElementById('soundAudio').classList.remove('hidden');
+                document.getElementById('soundContinueBtn').classList.remove('hidden');
+            }
+        }
+        
+        async function uploadAudio(input, type) {
+            const file = input.files[0];
+            if (!file) return;
+            
+            // Проверяем размер файла (максимум 10MB)
+            const maxSize = 10 * 1024 * 1024; // 10MB
+            if (file.size > maxSize) {
+                alert('File too large. Please choose a file smaller than 10MB.');
+                return;
+            }
+            
+            // Проверяем тип файла
+            const allowedTypes = ['audio/webm', 'audio/wav', 'audio/mp3', 'audio/m4a', 'audio/ogg'];
+            if (!allowedTypes.includes(file.type)) {
+                alert('Unsupported file type. Please use: WebM, WAV, MP3, M4A, or OGG.');
+                return;
+            }
+            
+            const url = URL.createObjectURL(file);
+            
+            // Показываем статус загрузки
+            const statusElement = type === 'listen' 
+                ? document.getElementById('recordingStatus')
+                : document.getElementById('soundRecordingStatus');
+            
+            if (statusElement) {
+                statusElement.textContent = 'Uploading audio file...';
+            }
+            
+            try {
+                // Сохраняем в Supabase Storage
+                await saveAudioToSupabase(file, type);
+                
+                if (statusElement) {
+                    statusElement.textContent = '✅ Audio file uploaded successfully';
+                }
+            } catch (error) {
+                console.error('Failed to upload audio file:', error);
+                if (statusElement) {
+                    statusElement.textContent = '⚠️ Audio loaded locally (upload failed)';
+                }
+            }
+            
+            // Обновляем UI
+            if (type === 'listen') {
+                currentListenUrl = url;
+                document.getElementById('listenAudio').src = url;
+                document.getElementById('listenAudio').classList.remove('hidden');
+                document.getElementById('soundBtn').classList.remove('hidden');
+            } else if (type === 'sound') {
+                currentSoundUrl = url;
+                document.getElementById('soundAudio').src = url;
+                document.getElementById('soundAudio').classList.remove('hidden');
+                document.getElementById('soundContinueBtn').classList.remove('hidden');
+            }
+        }
+        
+        function updateSessionSummary() {
+            const fragmentsList = document.getElementById('fragmentsList');
+            fragmentsList.innerHTML = '';
+            
+            fragments.forEach((frag, i) => {
+                const fragmentDiv = document.createElement('div');
+                fragmentDiv.className = 'fragment';
+                fragmentDiv.innerHTML = `
+                    <div class="fragment-title">Cycle ${frag.cycleNumber} — ${frag.listenSource}</div>
+                    <div class="fragment-audio">
+                        <div>
+                            <div class="audio-label">Listen</div>
+                            <audio controls class="audio-player" src="${frag.listenUrl}"></audio>
+                        </div>
+                        <div>
+                            <div class="audio-label">Sound</div>
+                            <audio controls class="audio-player" src="${frag.soundUrl}"></audio>
+                        </div>
+                    </div>
+                `;
+                fragmentsList.appendChild(fragmentDiv);
+            });
+        }
+        
+        // Fallback to localStorage if Supabase fails
+        function saveCapsuleToLocal(capsule) {
+            const all = JSON.parse(localStorage.getItem('lsrc_capsules_v4') || '[]');
+            const idNum = (all[all.length - 1]?.idNum || 0) + 1;
+            const saved = { ...capsule, id: Math.random().toString(36).slice(2, 10), idNum };
+            all.push(saved);
+            localStorage.setItem('lsrc_capsules_v4', JSON.stringify(all));
+            return saved;
+        }
+    </script>
+</body>
+</html>
