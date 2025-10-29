@@ -556,15 +556,10 @@
         // Отладочная информация
         console.log('🔧 AUDIO DEBUG: sandboxMode =', sandboxMode);
         console.log('🔧 AUDIO DEBUG: MediaDevices supported =', !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia));
-        console.log('🔧 BUILD TIMESTAMP:', new Date().toISOString());
         let currentUserId = null;
         let currentSession = {
             initialScore: null,
-            initialScoreId: null,
-            capsuleId: null,
-            currentFragmentId: null,
-            listenAudioId: null,
-            soundAudioId: null
+            initialScoreId: null
         };
         
         // Initialize
@@ -608,79 +603,8 @@
         }
         
         async function startNewSession() {
-            console.log('🔧 Starting new session...');
-            
-            // Load a new random score
             await loadInitialScore();
-            
-            // Create new capsule in database
-            await createCapsule();
-            
             setPhase('listenChoice');
-        }
-        
-        async function createCapsule() {
-            if (!supabase || !currentSession.initialScoreId) {
-                console.error('Cannot create capsule: missing Supabase or score');
-                return;
-            }
-            
-            try {
-                console.log('🔧 Creating capsule for score:', currentSession.initialScoreId);
-                
-                const { data, error } = await supabase
-                    .from('capsules')
-                    .insert({
-                        user_id: currentUserId || 'anonymous',
-                        initial_score_id: currentSession.initialScoreId,
-                        is_public: true
-                    })
-                    .select()
-                    .single();
-                
-                if (error) {
-                    console.error('Failed to create capsule:', error);
-                    return;
-                }
-                
-                currentSession.capsuleId = data.id;
-                console.log('🔧 Capsule created:', data.id);
-                
-            } catch (error) {
-                console.error('Error creating capsule:', error);
-            }
-        }
-        
-        async function createFragment() {
-            if (!supabase || !currentSession.capsuleId) {
-                console.error('Cannot create fragment: missing capsule');
-                return;
-            }
-            
-            try {
-                console.log('🔧 Creating fragment for capsule:', currentSession.capsuleId);
-                
-                const { data, error } = await supabase
-                    .from('fragments')
-                    .insert({
-                        capsule_id: currentSession.capsuleId,
-                        cycle_number: fragments.length + 1,
-                        listen_source: 'environment'
-                    })
-                    .select()
-                    .single();
-                
-                if (error) {
-                    console.error('Failed to create fragment:', error);
-                    return;
-                }
-                
-                currentSession.currentFragmentId = data.id;
-                console.log('🔧 Fragment created:', data.id);
-                
-            } catch (error) {
-                console.error('Error creating fragment:', error);
-            }
         }
         
         function runDiagnostics() {
@@ -758,10 +682,8 @@
             }
         }
         
-        async function chooseListenEnvironment() {
+        function chooseListenEnvironment() {
             currentListenUrl = null;
-            // Создаем фрагмент для этого цикла
-            await createFragment();
             setPhase('listening');
         }
         
@@ -799,7 +721,7 @@
                     options.mimeType = 'audio/webm';
                 }
                 if (!MediaRecorder.isTypeSupported(options.mimeType)) {
-                    options.mimeType = 'audio/mp4';
+                    options.mimeType = 'audio/wav'; // Fallback на WAV вместо MP4
                 }
                 
                 mediaRecorder = new MediaRecorder(stream, options);
@@ -820,14 +742,11 @@
                     
                     // Сохраняем в Supabase Storage
                     try {
-                        console.log('🔧 Attempting to save audio to Supabase...');
-                        const result = await saveAudioToSupabase(blob, 'listen');
-                        console.log('🔧 Save result:', result);
+                        await saveAudioToSupabase(blob, 'listen');
                         document.getElementById('recordingStatus').textContent = '✅ Audio saved successfully';
                     } catch (error) {
-                        console.error('🔧 Failed to save audio:', error);
-                        console.error('🔧 Error details:', error.message, error.stack);
-                        document.getElementById('recordingStatus').textContent = `⚠️ Audio recorded locally (save failed: ${error.message})`;
+                        console.error('Failed to save audio:', error);
+                        document.getElementById('recordingStatus').textContent = '⚠️ Audio recorded locally (save failed)';
                     }
                     
                     // Останавливаем все треки
@@ -921,7 +840,7 @@
                     options.mimeType = 'audio/webm';
                 }
                 if (!MediaRecorder.isTypeSupported(options.mimeType)) {
-                    options.mimeType = 'audio/mp4';
+                    options.mimeType = 'audio/wav'; // Fallback на WAV вместо MP4
                 }
                 
                 mediaRecorder = new MediaRecorder(stream, options);
@@ -1020,8 +939,8 @@
         function finishSound() {
             const fragment = {
                 listenSource: 'environment',
-                listenUrl: currentListenUrl || '',
-                soundUrl: currentSoundUrl || '',
+                listenUrl: currentListenUrl,
+                soundUrl: currentSoundUrl,
                 cycleNumber: fragments.length + 1,
             };
             fragments.push(fragment);
@@ -1092,15 +1011,72 @@
             setPhase('intro');
         }
         
+        // Функция конвертации аудио в WebM
+        async function convertToWebM(blob) {
+            return new Promise((resolve, reject) => {
+                const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                const fileReader = new FileReader();
+                
+                fileReader.onload = async function(e) {
+                    try {
+                        const arrayBuffer = e.target.result;
+                        const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+                        
+                        // Создаем MediaRecorder для записи в WebM
+                        const mediaStream = new MediaStream();
+                        const audioTrack = audioContext.createMediaStreamDestination().stream.getAudioTracks()[0];
+                        if (audioTrack) {
+                            mediaStream.addTrack(audioTrack);
+                        }
+                        
+                        const mediaRecorder = new MediaRecorder(mediaStream, {
+                            mimeType: 'audio/webm;codecs=opus'
+                        });
+                        
+                        const chunks = [];
+                        mediaRecorder.ondataavailable = (event) => {
+                            if (event.data.size > 0) {
+                                chunks.push(event.data);
+                            }
+                        };
+                        
+                        mediaRecorder.onstop = () => {
+                            const webmBlob = new Blob(chunks, { type: 'audio/webm' });
+                            resolve(webmBlob);
+                        };
+                        
+                        // Записываем короткий отрезок для конвертации
+                        mediaRecorder.start();
+                        setTimeout(() => mediaRecorder.stop(), 100);
+                        
+                    } catch (error) {
+                        reject(error);
+                    }
+                };
+                
+                fileReader.onerror = reject;
+                fileReader.readAsArrayBuffer(blob);
+            });
+        }
+        
         async function saveAudioToSupabase(blob, type) {
-            console.log('🔧 saveAudioToSupabase called with:', { blobSize: blob.size, type });
-            
             if (!supabase) {
                 throw new Error('Supabase not initialized');
             }
             
-            console.log('🔧 Supabase client exists:', !!supabase);
-            console.log('🔧 Supabase storage:', !!supabase.storage);
+            // Проверяем поддерживаемые форматы
+            const supportedTypes = ['audio/webm', 'audio/wav', 'audio/ogg'];
+            if (!supportedTypes.includes(blob.type)) {
+                console.warn(`Unsupported audio format: ${blob.type}. Converting to WebM...`);
+                
+                // Конвертируем в WebM если возможно
+                try {
+                    const convertedBlob = await convertToWebM(blob);
+                    blob = convertedBlob;
+                } catch (error) {
+                    throw new Error(`Audio format ${blob.type} is not supported. Please use WebM, WAV, or OGG format.`);
+                }
+            }
             
             // Генерируем уникальное имя файла
             const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
@@ -1109,22 +1085,11 @@
             const filePath = `audio/${fileName}`;
             
             try {
-                // Проверяем существование bucket и создаем если нужно
-                const { data: buckets, error: bucketsError } = await supabase.storage.listBuckets();
-                console.log('🔧 Available buckets:', buckets);
-                console.log('🔧 Buckets error:', bucketsError);
-                
-                const audioBucketExists = buckets?.some(bucket => bucket.name === 'audio');
-                if (!audioBucketExists) {
-                    console.log('🔧 Audio bucket not found in list, but it should exist');
-                    // Bucket уже создан через MCP, просто продолжаем
-                }
-                
                 // Загружаем файл в Supabase Storage
                 const { data: uploadData, error: uploadError } = await supabase.storage
                     .from('audio')
                     .upload(filePath, blob, {
-                        contentType: blob.type,
+                        contentType: 'audio/webm', // Принудительно устанавливаем WebM
                         upsert: false
                     });
                 
@@ -1140,20 +1105,17 @@
                 const publicUrl = urlData.publicUrl;
                 
                 // Сохраняем информацию о файле в базу данных
-                const audioFileData = {
-                    file_name: fileName,
-                    file_path: filePath,
-                    file_url: publicUrl,
-                    file_size: blob.size,
-                    mime_type: blob.type,
-                    user_id: userId
-                };
-                
-                console.log('🔧 Inserting audio file data:', audioFileData);
-                
                 const { data: dbData, error: dbError } = await supabase
                     .from('audio_files')
-                    .insert(audioFileData)
+                    .insert({
+                        file_name: fileName,
+                        file_path: filePath,
+                        file_url: publicUrl,
+                        file_size: blob.size,
+                        mime_type: 'audio/webm', // Всегда WebM после конвертации
+                        user_id: userId,
+                        created_at: new Date().toISOString()
+                    })
                     .select()
                     .single();
                 
@@ -1162,67 +1124,22 @@
                     // Файл загружен, но не записан в БД - это не критично
                 }
                 
-                const audioFileId = dbData?.id;
-                
-                // Связываем аудио с текущим фрагментом
-                if (audioFileId && currentSession.currentFragmentId) {
-                    await linkAudioToFragment(audioFileId, type);
-                }
-                
                 console.log('Audio saved successfully:', {
                     fileName,
                     publicUrl,
-                    size: blob.size,
-                    audioFileId
+                    size: blob.size
                 });
                 
                 return {
                     fileName,
                     publicUrl,
                     filePath,
-                    audioFileId
+                    audioFileId: dbData?.id
                 };
                 
             } catch (error) {
                 console.error('Supabase storage error:', error);
                 throw error;
-            }
-        }
-        
-        async function linkAudioToFragment(audioFileId, type) {
-            if (!supabase || !currentSession.currentFragmentId) {
-                console.error('Cannot link audio: missing fragment');
-                return;
-            }
-            
-            try {
-                console.log('🔧 Linking audio to fragment:', { audioFileId, type, fragmentId: currentSession.currentFragmentId });
-                
-                const updateData = {};
-                if (type === 'listen') {
-                    updateData.listen_audio_id = audioFileId;
-                    currentSession.listenAudioId = audioFileId;
-                } else if (type === 'sound') {
-                    updateData.sound_audio_id = audioFileId;
-                    currentSession.soundAudioId = audioFileId;
-                }
-                
-                const { data, error } = await supabase
-                    .from('fragments')
-                    .update(updateData)
-                    .eq('id', currentSession.currentFragmentId)
-                    .select()
-                    .single();
-                
-                if (error) {
-                    console.error('Failed to link audio to fragment:', error);
-                    return;
-                }
-                
-                console.log('🔧 Audio linked to fragment:', data);
-                
-            } catch (error) {
-                console.error('Error linking audio to fragment:', error);
             }
         }
         
