@@ -1130,8 +1130,14 @@
                 console.log('Audio saved successfully:', {
                     fileName,
                     publicUrl,
-                    size: blob.size
+                    size: blob.size,
+                    audioFileId: dbData?.id
                 });
+                
+                // Связываем аудио с фрагментом
+                if (dbData?.id) {
+                    await linkAudioToFragment(dbData.id, type);
+                }
                 
                 return {
                     fileName,
@@ -1224,6 +1230,38 @@
                 document.getElementById('soundAudio').src = url;
                 document.getElementById('soundAudio').classList.remove('hidden');
                 document.getElementById('soundContinueBtn').classList.remove('hidden');
+            }
+        }
+        
+        // Функция для связывания аудио с фрагментом
+        async function linkAudioToFragment(audioFileId, type) {
+            if (!supabase || !currentSession.fragmentId) {
+                console.error('Cannot link audio: missing Supabase or fragment');
+                return;
+            }
+            
+            try {
+                const updateData = {};
+                if (type === 'listen') {
+                    updateData.listen_audio_id = audioFileId;
+                } else if (type === 'sound') {
+                    updateData.sound_audio_id = audioFileId;
+                }
+                
+                const { data, error } = await supabase
+                    .from('fragments')
+                    .update(updateData)
+                    .eq('id', currentSession.fragmentId)
+                    .select()
+                    .single();
+                
+                if (error) {
+                    console.error('Failed to link audio to fragment:', error);
+                } else {
+                    console.log('🔧 Audio linked to fragment:', data);
+                }
+            } catch (error) {
+                console.error('Error linking audio to fragment:', error);
             }
         }
         
