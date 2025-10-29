@@ -568,6 +568,8 @@
         document.addEventListener('DOMContentLoaded', async function() {
             initializeTelegram();
             await initializeSupabase();
+            // Build marker for Vercel redeploy diagnostics
+            console.log('🔧 BUILD TIMESTAMP:', new Date().toISOString());
             await loadInitialScore();
             updateUI();
             runDiagnostics();
