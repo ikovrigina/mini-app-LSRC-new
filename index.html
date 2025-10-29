@@ -559,7 +559,9 @@
         let currentUserId = null;
         let currentSession = {
             initialScore: null,
-            initialScoreId: null
+            initialScoreId: null,
+            capsuleId: null,
+            fragmentId: null
         };
         
         // Initialize
@@ -604,6 +606,7 @@
         
         async function startNewSession() {
             await loadInitialScore();
+            await createCapsule();
             setPhase('listenChoice');
         }
         
@@ -683,8 +686,9 @@
             }
         }
         
-        function chooseListenEnvironment() {
+        async function chooseListenEnvironment() {
             currentListenUrl = null;
+            await createFragment();
             setPhase('listening');
         }
         
@@ -1230,6 +1234,64 @@
                 document.getElementById('soundAudio').src = url;
                 document.getElementById('soundAudio').classList.remove('hidden');
                 document.getElementById('soundContinueBtn').classList.remove('hidden');
+            }
+        }
+        
+        // Функция для создания капсулы в БД
+        async function createCapsule() {
+            if (!supabase || !currentSession.initialScoreId) {
+                console.error('Cannot create capsule: missing Supabase or score');
+                return;
+            }
+            
+            try {
+                const { data, error } = await supabase
+                    .from('capsules')
+                    .insert({
+                        initial_score_id: currentSession.initialScoreId,
+                        user_id: currentUserId || 'anonymous',
+                        created_at: new Date().toISOString()
+                    })
+                    .select()
+                    .single();
+                
+                if (error) {
+                    console.error('Failed to create capsule:', error);
+                } else {
+                    currentSession.capsuleId = data.id;
+                    console.log('🔧 Capsule created:', data);
+                }
+            } catch (error) {
+                console.error('Error creating capsule:', error);
+            }
+        }
+        
+        // Функция для создания фрагмента в БД
+        async function createFragment() {
+            if (!supabase || !currentSession.capsuleId) {
+                console.error('Cannot create fragment: missing Supabase or capsule');
+                return;
+            }
+            
+            try {
+                const { data, error } = await supabase
+                    .from('fragments')
+                    .insert({
+                        capsule_id: currentSession.capsuleId,
+                        cycle_number: fragments.length + 1,
+                        listen_source: 'environment'
+                    })
+                    .select()
+                    .single();
+                
+                if (error) {
+                    console.error('Failed to create fragment:', error);
+                } else {
+                    currentSession.fragmentId = data.id;
+                    console.log('🔧 Fragment created:', data);
+                }
+            } catch (error) {
+                console.error('Error creating fragment:', error);
             }
         }
         
