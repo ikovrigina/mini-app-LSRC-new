@@ -375,6 +375,11 @@
             try {
                 // Получаем конфигурацию из .env файла
                 appConfig = await initializeConfig();
+                console.log('App config loaded:', {
+                    URL: appConfig.SUPABASE.URL,
+                    ANON_KEY: appConfig.SUPABASE.ANON_KEY?.substring(0, 20) + '...',
+                });
+                
                 const validation = validateConfig(appConfig);
                 
                 if (!validation.isValid) {
@@ -388,11 +393,12 @@
                     appConfig.SUPABASE.ANON_KEY
                 );
                 
+                console.log('✅ Supabase client created successfully');
                 showConnectionStatus('Connected to database', 'success');
                 supabaseConnected = true;
                 return true;
             } catch (error) {
-                console.error('Supabase initialization failed:', error);
+                console.error('❌ Supabase initialization failed:', error);
                 showConnectionStatus('Database connection failed', 'error');
                 return false;
             }
@@ -1199,8 +1205,16 @@
         }
         
         async function saveAudioToSupabase(blob, type) {
+            console.log('Attempting to save audio to Supabase:', { type, size: blob.size, mimeType: blob.type });
+            
             if (!supabase) {
+                console.error('❌ Supabase client is null!');
                 throw new Error('Supabase not initialized');
+            }
+            
+            if (!supabaseConnected) {
+                console.error('❌ Supabase not connected!');
+                throw new Error('Supabase not connected');
             }
             
             // Проверяем поддерживаемые форматы

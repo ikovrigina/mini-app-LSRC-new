@@ -12,10 +12,13 @@ async function loadEnvVariables() {
         if (response.ok) {
             const apiConfig = await response.json();
             envVars = { ...envVars, ...apiConfig };
-            console.log('Loaded config from API:', Object.keys(apiConfig));
+            console.log('✅ Loaded config from API:', Object.keys(apiConfig));
+            console.log('Config values:', apiConfig);
+        } else {
+            console.error('❌ API config response not OK:', response.status, response.statusText);
         }
     } catch (error) {
-        console.warn('Could not load config from API:', error);
+        console.error('❌ Could not load config from API:', error);
     }
     
     // Fallback: попытка загрузить .env файл (только для локальной разработки)
@@ -34,7 +37,8 @@ async function loadEnvVariables() {
                         }
                     }
                 });
-                console.log('Loaded config from .env file:', Object.keys(envVars));
+                console.log('✅ Loaded config from .env file:', Object.keys(envVars));
+                console.log('Config values:', envVars);
             }
         } catch (error) {
             console.warn('Could not load .env file:', error);
