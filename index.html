@@ -730,11 +730,16 @@
             sandboxMode = false;
             
             try {
+                console.log('🎤 Starting recording...');
+                console.log('Has mediaDevices:', !!navigator.mediaDevices);
+                console.log('Has getUserMedia:', !!navigator.mediaDevices?.getUserMedia);
+                
                 // Проверяем поддержку MediaRecorder
                 if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
                     throw new Error('MediaRecorder not supported');
                 }
                 
+                console.log('Requesting microphone access...');
                 // Запрашиваем доступ к микрофону
                 const stream = await navigator.mediaDevices.getUserMedia({ 
                     audio: {
@@ -743,6 +748,7 @@
                         sampleRate: 44100
                     }
                 });
+                console.log('✅ Microphone access granted! Stream:', stream);
                 
                 // Создаем MediaRecorder
                 const options = { mimeType: 'audio/webm;codecs=opus' };
@@ -800,7 +806,10 @@
                 document.getElementById('recordingStatus').textContent = '🎤 Recording...';
                 
             } catch (error) {
-                console.error('Recording setup failed:', error);
+                console.error('❌ Recording setup failed:', error);
+                console.error('Error name:', error.name);
+                console.error('Error message:', error.message);
+                console.error('Full error:', error);
                 
                 // Показываем пользователю варианты
                 if (error.name === 'NotAllowedError') {
