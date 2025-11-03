@@ -26,7 +26,8 @@ export default function handler(req, res) {
       AUDIO_STORAGE_BUCKET: process.env.AUDIO_STORAGE_BUCKET || 'audio',
       DEFAULT_LANGUAGE: process.env.DEFAULT_LANGUAGE || 'en',
       ENABLE_ANALYTICS: process.env.ENABLE_ANALYTICS || 'false',
-      DEBUG_MODE: process.env.DEBUG_MODE || 'false'
+      DEBUG_MODE: process.env.DEBUG_MODE || 'false',
+      ENABLE_ASSISTANT_CHAT: process.env.ENABLE_ASSISTANT_CHAT || 'false'
     };
 
     // Не отправляем пустые значения

@@ -93,9 +93,11 @@ const CONFIG = {
     
     // Optional: External Services
     EXTERNAL_SERVICES: {
-        OPENAI_API_KEY: '', // Для транскрипции аудио
+        OPENAI_API_KEY: '', // Для транскрипции аудио и Assistant
+        OPENAI_ASSISTANT_ID: '', // ID вашего OpenAI Assistant (Custom GPT)
         GOOGLE_CLOUD_API_KEY: '', // Альтернатива для speech-to-text
-        ENABLE_TRANSCRIPTION: false
+        ENABLE_TRANSCRIPTION: false,
+        ENABLE_ASSISTANT_CHAT: false // Включить чат с Assistant
     }
 };
 
@@ -134,8 +136,10 @@ async function getConfig(envVars = {}) {
         },
         EXTERNAL_SERVICES: {
             OPENAI_API_KEY: envVars.OPENAI_API_KEY || CONFIG.EXTERNAL_SERVICES.OPENAI_API_KEY,
+            OPENAI_ASSISTANT_ID: envVars.OPENAI_ASSISTANT_ID || CONFIG.EXTERNAL_SERVICES.OPENAI_ASSISTANT_ID,
             GOOGLE_CLOUD_API_KEY: envVars.GOOGLE_CLOUD_API_KEY || CONFIG.EXTERNAL_SERVICES.GOOGLE_CLOUD_API_KEY,
-            ENABLE_TRANSCRIPTION: envVars.ENABLE_TRANSCRIPTION === 'true' || CONFIG.EXTERNAL_SERVICES.ENABLE_TRANSCRIPTION
+            ENABLE_TRANSCRIPTION: envVars.ENABLE_TRANSCRIPTION === 'true' || CONFIG.EXTERNAL_SERVICES.ENABLE_TRANSCRIPTION,
+            ENABLE_ASSISTANT_CHAT: envVars.ENABLE_ASSISTANT_CHAT === 'true' || CONFIG.EXTERNAL_SERVICES.ENABLE_ASSISTANT_CHAT
         }
     };
     

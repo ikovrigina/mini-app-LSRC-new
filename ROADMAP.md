@@ -14,6 +14,17 @@ Use this file to track all requested changes and debugging steps. We’ll keep i
 - [ ] Fallback upload always available (file input) with progress indicator
 
 ### Priority 2 — UX polish
+- [ ] Hide the "score" heading text on the main screen (do not display it)
+- [ ] Remove diagnostics panel (PASS/PASS/PASS) from UI; end-users shouldn't see it
+- [ ] Remove helper text under microphone button ("optional — enables live recording if allowed")
+- [ ] Keep the initial score fixed across all phases (do not change on returning to Listen); also hide the word "score" in Listen phase
+- [ ] Remove the "Listen source" choice screen entirely; go straight to Listening
+- [ ] On entering Listening, immediately request mic (once per session) and auto-start recording
+- [ ] In Listening show only a single prominent "Stop" button (record auto-starts)
+- [ ] Persist mic permission state to avoid repeated prompts within the session
+- [ ] After pressing Stop in Listening, go to Sound screen; pressing "Sound" auto-starts recording (no extra prompts), show only a single "Stop" button
+- [ ] After pressing Stop in Sound, show two choices: "Listen" (start a new listening cycle) and "Reflect"
+- [ ] If user chooses "Listen" after Sound, show two buttons: "Listen to environment" and "Listen to past listening (previous cycle)"
 - [ ] Unify copy/buttons across phases (Listen → Sound → Reflect → Create)
 - [ ] Show inline toasts for: recording start/stop/save/link
 - [ ] Session summary: display linked audio filenames and durations
@@ -29,6 +40,22 @@ Use this file to track all requested changes and debugging steps. We’ll keep i
 - [ ] Collection of inspiring score texts (seed + rotation)
 - [ ] Session progress tracking (per user)
 - [ ] Optional reflection transcription pipeline (flag-controlled)
+ - [ ] Reflect: user can submit reflection as text OR as audio
+   - [ ] If text: save to `reflections.text`, link to current fragment
+   - [ ] If audio: save audio to Storage + `audio_files`, link via `reflections.audio_id`
+   - [ ] Transcribe reflection audio to text and store in `reflections.transcription_text`
+   - [ ] Extract keywords from final text (typed or transcribed) into `reflections.keywords`
+   - [ ] Ensure RLS allows anon insert for reflections in current testing mode
+ - [ ] Create phase after Reflect:
+   - [ ] Input for user score; save to `scores` with `source = user_created` and link to capsule
+   - [ ] Replace quiet confirmation with: "Your score has been added to the listening archive. It is now part of the collective pool."
+  - [ ] After confirmation show two actions: "New capsule" (start fresh) and "Listen to a capsule from archive" (pick and play a past capsule)
+
+### Archive
+- [ ] Add Archive screen (Capsule Archive)
+  - [ ] List capsules (most recent first) with the title of the created score
+  - [ ] Tap to open capsule details and play its listen/sound audios
+  - [ ] Back navigation to return to Create/intro
 
 ### Priority 5 — Observability
 - [ ] Add lightweight client logs toggle (DEBUG_MODE) with user-safe redaction

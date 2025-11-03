@@ -222,7 +222,6 @@
     <div class="container">
         <!-- Header -->
         <div class="header">
-            <div class="score-text">score</div>
             <div id="scoreLine" class="score-text">Loading...</div>
         </div>
         
@@ -246,12 +245,7 @@
         <div id="introPhase" class="card">
             <div class="text-center">
                 <button class="btn" onclick="startNewSession()">Listen</button>
-                <div class="text-sm mt-4">
-                    <button class="btn btn-secondary btn-small" onclick="enableMicrophone()">Enable microphone</button>
-                    <div id="micStatus" class="text-sm">(optional — enables live recording if allowed)</div>
-                </div>
             </div>
-            <div id="testPanel" class="mt-4"></div>
         </div>
         
         <!-- Listen Choice Phase -->
@@ -311,13 +305,16 @@
             <div class="card-title">Reflect</div>
             <textarea id="reflectionText" class="textarea" placeholder="Write what you noticed, felt, or became aware of."></textarea>
             <div class="text-center mt-4">
-                <button class="btn" onclick="setPhase('create')">Create</button>
+                <div class="flex gap-2 justify-center">
+                    <button class="btn" onclick="setPhase('create')">Create</button>
+                    <button id="chatButton" class="btn btn-secondary" onclick="setPhase('chat')">💬 Ask Assistant</button>
+                </div>
             </div>
         </div>
         
         <!-- Create Phase -->
         <div id="createPhase" class="card hidden">
-            <div class="card-title">Write your own score</div>
+            <div class="card-title">Write your own</div>
             <div class="text-sm text-center mb-4">(one line)</div>
             <input id="userScoreTitle" class="input" placeholder="e.g., Breathe with the echo of your own steps.">
             <div class="flex items-center mt-4">
@@ -326,6 +323,21 @@
             </div>
             <div class="text-center mt-4">
                 <button id="saveBtn" class="btn" onclick="saveCapsule()">Save capsule</button>
+            </div>
+        </div>
+        
+        <!-- Chat Phase -->
+        <div id="chatPhase" class="card hidden">
+            <div class="card-title">💬 Chat with Assistant</div>
+            <div id="chatMessages" class="mb-4" style="min-height: 200px; max-height: 400px; overflow-y: auto; border: 1px solid #e5e7eb; border-radius: 12px; padding: 12px;">
+                <div class="text-sm text-center text-gray-500">Ask questions about Deep Listening...</div>
+            </div>
+            <div class="flex gap-2">
+                <input id="chatInput" class="input" placeholder="Type your question..." style="flex: 1;">
+                <button class="btn btn-small" onclick="sendChatMessage()">Send</button>
+            </div>
+            <div class="text-center mt-4">
+                <button class="btn btn-secondary btn-small" onclick="setPhase('reflect')">Back to Reflect</button>
             </div>
         </div>
         
@@ -572,7 +584,6 @@
             console.log('🔧 BUILD TIMESTAMP:', new Date().toISOString());
             await loadInitialScore();
             updateUI();
-            runDiagnostics();
         });
         
         function initializeTelegram() {
@@ -609,7 +620,12 @@
         async function startNewSession() {
             await loadInitialScore();
             await createCapsule();
-            setPhase('listenChoice');
+            await createFragment();
+            setPhase('listening');
+            // Автозапуск записи после рендера экрана
+            setTimeout(() => {
+                startRecording();
+            }, 100);
         }
         
         function runDiagnostics() {
@@ -661,7 +677,7 @@
         
         function updateUI() {
             // Hide all phases
-            const phases = ['introPhase', 'listenChoicePhase', 'listeningPhase', 'soundPhase', 'reflectPhase', 'createPhase', 'donePhase'];
+            const phases = ['introPhase', 'listenChoicePhase', 'listeningPhase', 'soundPhase', 'reflectPhase', 'createPhase', 'chatPhase', 'donePhase'];
             phases.forEach(phase => {
                 document.getElementById(phase).classList.add('hidden');
             });
@@ -745,7 +761,6 @@
                     currentListenUrl = URL.createObjectURL(blob);
                     document.getElementById('listenAudio').src = currentListenUrl;
                     document.getElementById('listenAudio').classList.remove('hidden');
-                    document.getElementById('soundBtn').classList.remove('hidden');
                     
                     // Сохраняем в Supabase Storage
                     try {
@@ -758,6 +773,10 @@
                     
                     // Останавливаем все треки
                     stream.getTracks().forEach(track => track.stop());
+
+                    // Переходим сразу к Sound и автозапускаем запись отклика
+                    setPhase('sound');
+                    setTimeout(() => startSoundRecording(), 150);
                 };
                 
                 mediaRecorder.onerror = (event) => {
@@ -772,7 +791,7 @@
                 
                 document.getElementById('recordBtn').textContent = '⏹️ Stop';
                 document.getElementById('recordBtn').onclick = stopRecording;
-                document.getElementById('recordingStatus').textContent = '🎤 Recording... (click Stop when done)';
+                document.getElementById('recordingStatus').textContent = '🎤 Recording...';
                 
             } catch (error) {
                 console.error('Recording setup failed:', error);
@@ -899,7 +918,7 @@
                 document.getElementById('soundRecordBtn').textContent = '⏹️ Stop';
                 document.getElementById('soundRecordBtn').onclick = stopSoundRecording;
                 if (statusElement) {
-                    statusElement.textContent = '🎤 Recording sound... (click Stop when done)';
+                    statusElement.textContent = '🎤 Recording sound...';
                 }
                 
             } catch (error) {
@@ -955,7 +974,25 @@
             fragments.push(fragment);
             currentListenUrl = null;
             currentSoundUrl = null;
-            setPhase('listenChoice');
+            // После Sound предлагаем Listen или Reflect
+            setPhase('sound');
+            const nav = document.getElementById('soundNavigation');
+            if (nav) {
+                nav.classList.remove('hidden');
+                const btns = nav.querySelectorAll('button');
+                const listenBtn = btns[0];
+                const reflectBtn = btns[1];
+                if (listenBtn) {
+                    listenBtn.onclick = async () => {
+                        await createFragment();
+                        setPhase('listening');
+                        setTimeout(() => startRecording(), 100);
+                    };
+                }
+                if (reflectBtn) {
+                    reflectBtn.onclick = () => setPhase('reflect');
+                }
+            }
         }
         
         async function saveCapsule() {
@@ -1019,6 +1056,99 @@
             loadInitialScore();
             setPhase('intro');
         }
+        
+        async function sendChatMessage() {
+            const input = document.getElementById('chatInput');
+            const message = input.value.trim();
+            
+            if (!message) return;
+            
+            // Добавляем сообщение пользователя в чат
+            const messagesDiv = document.getElementById('chatMessages');
+            messagesDiv.innerHTML = messagesDiv.innerHTML.replace(
+                '<div class="text-sm text-center text-gray-500">Ask questions about Deep Listening...</div>',
+                ''
+            );
+            
+            const userMsg = document.createElement('div');
+            userMsg.className = 'mb-3 text-right';
+            userMsg.innerHTML = `
+                <div class="inline-block bg-blue-500 text-white rounded-lg px-4 py-2 max-w-[80%]">
+                    ${message}
+                </div>
+            `;
+            messagesDiv.appendChild(userMsg);
+            
+            // Очищаем input и показываем loading
+            input.value = '';
+            input.disabled = true;
+            
+            const loadingMsg = document.createElement('div');
+            loadingMsg.className = 'mb-3 text-left';
+            loadingMsg.innerHTML = `
+                <div class="inline-block bg-gray-200 text-gray-600 rounded-lg px-4 py-2">
+                    Thinking...
+                </div>
+            `;
+            messagesDiv.appendChild(loadingMsg);
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+            
+            try {
+                // Отправляем запрос на наш API endpoint
+                const response = await fetch('/api/chat', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ message })
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
+                const data = await response.json();
+                
+                // Убираем loading и добавляем ответ
+                loadingMsg.remove();
+                const assistantMsg = document.createElement('div');
+                assistantMsg.className = 'mb-3 text-left';
+                assistantMsg.innerHTML = `
+                    <div class="inline-block bg-gray-100 text-gray-800 rounded-lg px-4 py-2 max-w-[80%]">
+                        ${data.response}
+                    </div>
+                `;
+                messagesDiv.appendChild(assistantMsg);
+                messagesDiv.scrollTop = messagesDiv.scrollHeight;
+                
+            } catch (error) {
+                console.error('Chat error:', error);
+                loadingMsg.remove();
+                const errorMsg = document.createElement('div');
+                errorMsg.className = 'mb-3 text-left';
+                errorMsg.innerHTML = `
+                    <div class="inline-block bg-red-100 text-red-800 rounded-lg px-4 py-2">
+                        ❌ Error: ${error.message}
+                    </div>
+                `;
+                messagesDiv.appendChild(errorMsg);
+            } finally {
+                input.disabled = false;
+                input.focus();
+            }
+        }
+        
+        // Добавляем обработчик Enter для chat input
+        document.addEventListener('DOMContentLoaded', () => {
+            const chatInput = document.getElementById('chatInput');
+            if (chatInput) {
+                chatInput.addEventListener('keypress', (e) => {
+                    if (e.key === 'Enter') {
+                        sendChatMessage();
+                    }
+                });
+            }
+        });
         
         // Функция конвертации аудио в WebM
         async function convertToWebM(blob) {
