@@ -12,13 +12,10 @@ async function loadEnvVariables() {
         if (response.ok) {
             const apiConfig = await response.json();
             envVars = { ...envVars, ...apiConfig };
-            console.log('✅ Loaded config from API:', Object.keys(apiConfig));
-            console.log('Config values:', apiConfig);
-        } else {
-            console.error('❌ API config response not OK:', response.status, response.statusText);
+            console.log('Loaded config from API:', Object.keys(apiConfig));
         }
     } catch (error) {
-        console.error('❌ Could not load config from API:', error);
+        console.warn('Could not load config from API:', error);
     }
     
     // Fallback: попытка загрузить .env файл (только для локальной разработки)
@@ -37,8 +34,7 @@ async function loadEnvVariables() {
                         }
                     }
                 });
-                console.log('✅ Loaded config from .env file:', Object.keys(envVars));
-                console.log('Config values:', envVars);
+                console.log('Loaded config from .env file:', Object.keys(envVars));
             }
         } catch (error) {
             console.warn('Could not load .env file:', error);
@@ -97,11 +93,9 @@ const CONFIG = {
     
     // Optional: External Services
     EXTERNAL_SERVICES: {
-        OPENAI_API_KEY: '', // Для транскрипции аудио и Assistant
-        OPENAI_ASSISTANT_ID: '', // ID вашего OpenAI Assistant (Custom GPT)
+        OPENAI_API_KEY: '', // Для транскрипции аудио
         GOOGLE_CLOUD_API_KEY: '', // Альтернатива для speech-to-text
-        ENABLE_TRANSCRIPTION: false,
-        ENABLE_ASSISTANT_CHAT: false // Включить чат с Assistant
+        ENABLE_TRANSCRIPTION: false
     }
 };
 
@@ -140,10 +134,8 @@ async function getConfig(envVars = {}) {
         },
         EXTERNAL_SERVICES: {
             OPENAI_API_KEY: envVars.OPENAI_API_KEY || CONFIG.EXTERNAL_SERVICES.OPENAI_API_KEY,
-            OPENAI_ASSISTANT_ID: envVars.OPENAI_ASSISTANT_ID || CONFIG.EXTERNAL_SERVICES.OPENAI_ASSISTANT_ID,
             GOOGLE_CLOUD_API_KEY: envVars.GOOGLE_CLOUD_API_KEY || CONFIG.EXTERNAL_SERVICES.GOOGLE_CLOUD_API_KEY,
-            ENABLE_TRANSCRIPTION: envVars.ENABLE_TRANSCRIPTION === 'true' || CONFIG.EXTERNAL_SERVICES.ENABLE_TRANSCRIPTION,
-            ENABLE_ASSISTANT_CHAT: envVars.ENABLE_ASSISTANT_CHAT === 'true' || CONFIG.EXTERNAL_SERVICES.ENABLE_ASSISTANT_CHAT
+            ENABLE_TRANSCRIPTION: envVars.ENABLE_TRANSCRIPTION === 'true' || CONFIG.EXTERNAL_SERVICES.ENABLE_TRANSCRIPTION
         }
     };
     

@@ -3,10 +3,6 @@
     {
       "source": "/api/config",
       "destination": "/api/config.js"
-    },
-    {
-      "source": "/api/chat",
-      "destination": "/api/chat.js"
     }
   ]
 }
