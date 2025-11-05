@@ -11,8 +11,9 @@ from datetime import datetime
 from typing import Optional
 
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
-from telegram.ext import Application, CommandHandler, MessageHandler, CallbackQueryHandler, filters
+from telegram.ext import Application, CommandHandler, MessageHandler, CallbackQueryHandler, ContextTypes, filters
 from supabase import create_client, Client
+from openai import OpenAI
 import requests
 
 # Настройка логирования
@@ -27,9 +28,23 @@ BOT_TOKEN = os.getenv('TELEGRAM_BOT_TOKEN')
 SUPABASE_URL = os.getenv('SUPABASE_URL')
 SUPABASE_KEY = os.getenv('SUPABASE_ANON_KEY')
 WEBAPP_URL = os.getenv('WEBAPP_URL', 'https://listen-sound-reflect-create.vercel.app/')
+OPENAI_API_KEY = os.getenv('OPENAI_API_KEY')
+OPENAI_ASSISTANT_ID = os.getenv('OPENAI_ASSISTANT_ID')
 
 # Инициализация Supabase
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
+
+# Инициализация OpenAI (опционально)
+openai_client: OpenAI | None = None
+if OPENAI_API_KEY:
+    try:
+        openai_client = OpenAI(api_key=OPENAI_API_KEY)
+        if OPENAI_ASSISTANT_ID:
+            logger.info(f"✅ OpenAI Assistant initialized: {OPENAI_ASSISTANT_ID[:20]}...")
+        else:
+            logger.warning("⚠️ OPENAI_ASSISTANT_ID not set")
+    except Exception as e:
+        logger.error(f"Failed to initialize OpenAI: {e}")
 
 class AudioHandler:
     """Обработчик аудио файлов"""
@@ -88,7 +103,7 @@ class AudioHandler:
             logger.error(f"Failed to upload to Supabase: {e}")
             raise
 
-async def start_command(update: Update, context) -> None:
+async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Обработчик команды /start"""
     user = update.effective_user
     
@@ -103,6 +118,14 @@ async def start_command(update: Update, context) -> None:
             callback_data="about"
         )]
     ]
+    
+    # Добавляем кнопку чата с Assistant, если настроен
+    if OPENAI_ASSISTANT_ID and openai_client:
+        keyboard.append([InlineKeyboardButton(
+            "💬 Chat with Assistant",
+            callback_data="start_chat"
+        )])
+    
     reply_markup = InlineKeyboardMarkup(keyboard)
     
     welcome_text = f"""
@@ -203,13 +226,14 @@ async def handle_audio_message(update: Update, context) -> None:
     # Аналогично голосовым сообщениям
     await handle_voice_message(update, context)
 
-async def help_command(update: Update, context) -> None:
+async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Помощь"""
     help_text = """
 🎵 *Listen.Sound.Reflect.Create Bot*
 
 *Commands:*
 • `/start` - Begin your Deep Listening journey
+• `/chat` - Chat with Assistant about Deep Listening
 • `/help` - Show this help message
 
 *How to use:*
@@ -225,6 +249,8 @@ Send voice messages anytime to save them as part of your sonic exploration.
 """
     
     keyboard = [[InlineKeyboardButton("🎵 Open Mini App", web_app={"url": WEBAPP_URL})]]
+    if OPENAI_ASSISTANT_ID and openai_client:
+        keyboard.append([InlineKeyboardButton("💬 Chat with Assistant", callback_data="start_chat")])
     reply_markup = InlineKeyboardMarkup(keyboard)
     
     await update.message.reply_text(
@@ -232,6 +258,208 @@ Send voice messages anytime to save them as part of your sonic exploration.
         parse_mode='Markdown',
         reply_markup=reply_markup
     )
+
+async def chat_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Команда /chat для общения с Assistant"""
+    user_id = update.effective_user.id
+    
+    if not OPENAI_ASSISTANT_ID or not openai_client:
+        await update.message.reply_text(
+            "⚠️ Assistant не настроен. Добавьте OPENAI_API_KEY и OPENAI_ASSISTANT_ID в переменные окружения."
+        )
+        return
+    
+    # Включаем режим чата для пользователя
+    if 'user_sessions' not in context.bot_data:
+        context.bot_data['user_sessions'] = {}
+    if user_id not in context.bot_data['user_sessions']:
+        context.bot_data['user_sessions'][user_id] = {}
+    context.bot_data['user_sessions'][user_id]['chat_mode'] = True
+    
+    logger.info(f"✅ Chat mode enabled for user {user_id} via /chat command")
+    
+    await update.message.reply_text(
+        "💬 Напишите ваш вопрос о Deep Listening, и я передам его моему Assistant."
+    )
+
+async def chat_with_assistant(user_text: str) -> str:
+    """Отправляем текст в OpenAI Assistant и получаем ответ."""
+    if not openai_client or not OPENAI_ASSISTANT_ID:
+        return "⚠️ Assistant не настроен"
+    
+    try:
+        loop = asyncio.get_event_loop()
+        
+        # Создаем thread для диалога
+        thread = await loop.run_in_executor(
+            None,
+            lambda: openai_client.beta.threads.create()
+        )
+        
+        # Добавляем сообщение пользователя
+        await loop.run_in_executor(
+            None,
+            lambda: openai_client.beta.threads.messages.create(
+                thread_id=thread.id,
+                role="user",
+                content=user_text
+            )
+        )
+        
+        # Запускаем Assistant
+        run = await loop.run_in_executor(
+            None,
+            lambda: openai_client.beta.threads.runs.create(
+                thread_id=thread.id,
+                assistant_id=OPENAI_ASSISTANT_ID
+            )
+        )
+        
+        # Ждем ответа (максимум 60 секунд)
+        timeout = 60
+        elapsed = 0
+        while run.status in ['queued', 'in_progress'] and elapsed < timeout:
+            await asyncio.sleep(2)
+            elapsed += 2
+            
+            run = await loop.run_in_executor(
+                None,
+                lambda: openai_client.beta.threads.runs.retrieve(
+                    thread_id=thread.id,
+                    run_id=run.id
+                )
+            )
+        
+        if run.status == 'completed':
+            # Получаем ответы от Assistant
+            messages = await loop.run_in_executor(
+                None,
+                lambda: openai_client.beta.threads.messages.list(
+                    thread_id=thread.id,
+                    order="asc"
+                )
+            )
+            
+            # Возвращаем последнее сообщение от assistant
+            for message in reversed(messages.data):
+                if message.role == 'assistant':
+                    content = message.content[0] if message.content else None
+                    if content and hasattr(content, 'text'):
+                        return content.text.value
+            
+            return "❌ Ответ не получен от Assistant"
+        else:
+            logger.error(f"Assistant run failed: {run.status}")
+            return f"❌ Ошибка: {run.status}"
+            
+    except Exception as e:
+        logger.error(f"Ошибка работы с Assistant: {e}", exc_info=True)
+        return f"❌ Ошибка: {str(e)}"
+
+async def handle_text_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Обработчик текстовых сообщений"""
+    user_id = update.effective_user.id
+    
+    # Проверяем, находится ли пользователь в режиме чата с Assistant
+    if context.bot_data.get('user_sessions', {}).get(user_id, {}).get('chat_mode', False):
+        user_text = update.message.text
+        logger.info(f"💬 Chat mode activated for user {user_id}: {user_text[:50]}")
+        
+        # Показываем индикатор набора
+        thinking_msg = await update.message.reply_text("🤔 Думаю...")
+        
+        try:
+            # Отправляем в Assistant
+            assistant_response = await chat_with_assistant(user_text)
+            logger.info(f"✅ Assistant response received for user {user_id}")
+            
+            # Удаляем индикатор и отправляем ответ
+            await thinking_msg.delete()
+            await update.message.reply_text(assistant_response)
+            
+            # Спрашиваем, хочет ли пользователь продолжить
+            keyboard = InlineKeyboardMarkup([
+                [InlineKeyboardButton("💬 Задать еще вопрос", callback_data="continue_chat")],
+                [InlineKeyboardButton("🏠 Главное меню", callback_data="main_menu")]
+            ])
+            await update.message.reply_text(
+                "Хотите продолжить разговор или вернуться в главное меню?",
+                reply_markup=keyboard
+            )
+        except Exception as e:
+            logger.error(f"❌ Error in chat_with_assistant for user {user_id}: {e}", exc_info=True)
+            await thinking_msg.delete()
+            await update.message.reply_text(f"❌ Произошла ошибка: {str(e)}")
+    else:
+        # Обычное сообщение - показываем помощь
+        await update.message.reply_text(
+            "Привет! Используйте /start для начала или /help для помощи."
+        )
+
+async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Обработчик нажатий на кнопки"""
+    query = update.callback_query
+    await query.answer()
+    
+    user_id = query.from_user.id
+    
+    if query.data == "start_chat":
+        if not OPENAI_ASSISTANT_ID or not openai_client:
+            await query.answer("⚠️ Assistant не настроен", show_alert=True)
+            return
+        
+        # Включаем режим чата
+        if 'user_sessions' not in context.bot_data:
+            context.bot_data['user_sessions'] = {}
+        if user_id not in context.bot_data['user_sessions']:
+            context.bot_data['user_sessions'][user_id] = {}
+        context.bot_data['user_sessions'][user_id]['chat_mode'] = True
+        
+        logger.info(f"✅ Chat mode enabled for user {user_id} via button")
+        
+        await query.edit_message_text(
+            "💬 Напишите ваш вопрос о Deep Listening, и я передам его моему Assistant."
+        )
+    
+    elif query.data == "continue_chat":
+        # Сохраняем режим чата
+        if 'user_sessions' not in context.bot_data:
+            context.bot_data['user_sessions'] = {}
+        if user_id not in context.bot_data['user_sessions']:
+            context.bot_data['user_sessions'][user_id] = {}
+        context.bot_data['user_sessions'][user_id]['chat_mode'] = True
+        
+        await query.edit_message_text(
+            "💬 Напишите ваш следующий вопрос о Deep Listening:"
+        )
+    
+    elif query.data == "main_menu":
+        # Выключаем режим чата
+        if 'user_sessions' in context.bot_data and user_id in context.bot_data['user_sessions']:
+            context.bot_data['user_sessions'][user_id]['chat_mode'] = False
+        
+        keyboard = [
+            [InlineKeyboardButton("🎵 Open Mini App", web_app={"url": WEBAPP_URL})],
+            [InlineKeyboardButton("ℹ️ About Deep Listening", callback_data="about")]
+        ]
+        
+        if OPENAI_ASSISTANT_ID and openai_client:
+            keyboard.append([InlineKeyboardButton("💬 Chat with Assistant", callback_data="start_chat")])
+        
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        
+        welcome_text = f"""
+🎵 *Welcome to Listen.Sound.Reflect.Create*
+
+Hello {query.from_user.first_name}! This bot helps you explore Deep Listening practices.
+
+*Ready to begin your sonic journey?*
+"""
+        await query.edit_message_text(
+            welcome_text,
+            parse_mode='Markdown',
+            reply_markup=reply_markup
+        )
 
 def main():
     """Запуск бота"""
@@ -249,9 +477,12 @@ def main():
     # Добавляем обработчики
     application.add_handler(CommandHandler("start", start_command))
     application.add_handler(CommandHandler("help", help_command))
+    application.add_handler(CommandHandler("chat", chat_command))
+    application.add_handler(CallbackQueryHandler(button_handler))
     application.add_handler(CallbackQueryHandler(about_callback, pattern="about"))
     application.add_handler(MessageHandler(filters.VOICE, handle_voice_message))
     application.add_handler(MessageHandler(filters.AUDIO, handle_audio_message))
+    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_text_message))
     
     # Запускаем бота
     logger.info("Starting bot...")
