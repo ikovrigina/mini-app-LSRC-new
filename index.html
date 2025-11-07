@@ -236,12 +236,6 @@
             Running in browser preview. In Telegram, this page opens inside the bot as a Mini App.
         </div>
         
-        <!-- Sandbox Banner -->
-        <div id="sandboxBanner" class="alert hidden">
-            <strong>Sandbox mode (no live mic).</strong><br>
-            Use simulated recordings or upload audio files to continue the flow.
-        </div>
-        
         <!-- Intro Phase -->
         <div id="introPhase" class="card">
             <div class="text-center">
@@ -251,7 +245,6 @@
                     <div id="micStatus" class="text-sm">(optional — enables live recording if allowed)</div>
                 </div>
             </div>
-            <div id="testPanel" class="mt-4"></div>
         </div>
         
         <!-- Listen Choice Phase -->
@@ -271,7 +264,7 @@
         <div id="listeningPhase" class="card hidden">
             <div class="card-title">Listening…</div>
             <div class="text-center">
-                <div id="recordingStatus" class="text-sm mb-4">(sandbox recording)</div>
+                <div id="recordingStatus" class="text-sm mb-4">(ready to record)</div>
                 <div class="flex gap-3 justify-center">
                     <button id="recordBtn" class="btn" onclick="startRecording()">🎤 Record</button>
                     <button id="soundBtn" class="btn hidden" onclick="goSoundFromListen()">Sound</button>
@@ -550,12 +543,8 @@
         let selectedPastId = null;
         let tg = null;
         let inTelegram = false;
-        let sandboxMode = false; // ИСПРАВЛЕНО: было true
         let micReady = false;
         
-        // Отладочная информация
-        console.log('🔧 AUDIO DEBUG: sandboxMode =', sandboxMode);
-        console.log('🔧 AUDIO DEBUG: MediaDevices supported =', !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia));
         let currentUserId = null;
         let currentSession = {
             initialScore: null,
@@ -568,11 +557,8 @@
         document.addEventListener('DOMContentLoaded', async function() {
             initializeTelegram();
             await initializeSupabase();
-            // Build marker for Vercel redeploy diagnostics
-            console.log('🔧 BUILD TIMESTAMP:', new Date().toISOString());
             await loadInitialScore();
             updateUI();
-            runDiagnostics();
         });
         
         function initializeTelegram() {
@@ -612,37 +598,7 @@
             setPhase('listenChoice');
         }
         
-        function runDiagnostics() {
-            const isSecure = window.isSecureContext || location.protocol === 'https:';
-            const hasMediaDevices = !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia);
-            
-            if (!isSecure || !hasMediaDevices) {
-                console.warn('⚠️ Secure context or MediaDevices not available, but not enabling sandbox mode');
-                // sandboxMode = true; // Отключаем автоматический sandbox mode
-                // document.getElementById('sandboxBanner').classList.remove('hidden');
-            }
-            
-            // Update test panel
-            const testPanel = document.getElementById('testPanel');
-            testPanel.innerHTML = `
-                <div class="text-sm" style="color: #6b7280; margin-bottom: 8px;">Diagnostics / Tests</div>
-                <div class="grid">
-                    <div class="px-2 py-1 rounded" style="background: ${isSecure ? '#dcfce7' : '#fef2f2'}; color: ${isSecure ? '#166534' : '#dc2626'};">
-                        ${isSecure ? 'PASS' : 'FAIL'} — Secure Context
-                    </div>
-                    <div class="px-2 py-1 rounded" style="background: ${hasMediaDevices ? '#dcfce7' : '#fef2f2'}; color: ${hasMediaDevices ? '#166534' : '#dc2626'};">
-                        ${hasMediaDevices ? 'PASS' : 'FAIL'} — MediaDevices Present
-                    </div>
-                    <div class="px-2 py-1 rounded" style="background: ${supabaseConnected ? '#dcfce7' : '#fef2f2'}; color: ${supabaseConnected ? '#166534' : '#dc2626'};">
-                        ${supabaseConnected ? 'PASS' : 'FAIL'} — Database Connected
-                    </div>
-                </div>
-            `;
-        }
-        
         function enableMicrophone() {
-            if (sandboxMode) return;
-            
             navigator.mediaDevices.getUserMedia({ audio: true })
                 .then(() => {
                     micReady = true;
@@ -703,9 +659,6 @@
         async function startRecording() {
             // Показать статус записи
             document.getElementById('recordingStatus').textContent = 'Requesting microphone access...';
-            
-            // Сбрасываем sandbox режим при попытке записи
-            sandboxMode = false;
             
             try {
                 // Проверяем поддержку MediaRecorder
@@ -777,7 +730,6 @@
             } catch (error) {
                 console.error('Recording setup failed:', error);
                 
-                // Показываем пользователю варианты
                 if (error.name === 'NotAllowedError') {
                     document.getElementById('recordingStatus').innerHTML = 
                         '❌ Microphone access denied.<br>Please allow microphone access and try again.';
@@ -789,15 +741,8 @@
                         '❌ Recording not available.<br>You can upload an audio file instead.';
                 }
                 
-                // Показываем опцию загрузки файла
                 document.getElementById('uploadControls').classList.remove('hidden');
-                
-                // НЕ активируем sandbox режим - пусть пользователь попробует снова
-                console.warn('⚠️ Recording error:', error.name, '- but not enabling sandbox mode');
-                // if (error.name !== 'NotAllowedError' && error.name !== 'NotFoundError') {
-                //     sandboxMode = true;
-                //     document.getElementById('sandboxBanner').classList.remove('hidden');
-                // }
+                console.warn('Recording error:', error.name);
             }
         }
         
@@ -823,9 +768,6 @@
             if (statusElement) {
                 statusElement.textContent = 'Requesting microphone access...';
             }
-            
-            // Сбрасываем sandbox режим при попытке записи
-            sandboxMode = false;
             
             try {
                 // Проверяем поддержку MediaRecorder
@@ -905,7 +847,6 @@
             } catch (error) {
                 console.error('Sound recording setup failed:', error);
                 
-                // Показываем пользователю варианты
                 if (statusElement) {
                     if (error.name === 'NotAllowedError') {
                         statusElement.innerHTML = 
@@ -919,19 +860,13 @@
                     }
                 }
                 
-                // Показываем опцию загрузки файла для sound тоже
                 const uploadControls = document.getElementById('soundUploadControls') || 
                                      document.getElementById('uploadControls');
                 if (uploadControls) {
                     uploadControls.classList.remove('hidden');
                 }
                 
-                // НЕ активируем sandbox режим - пусть пользователь попробует снова
-                console.warn('⚠️ Recording error:', error.name, '- but not enabling sandbox mode');
-                // if (error.name !== 'NotAllowedError' && error.name !== 'NotFoundError') {
-                //     sandboxMode = true;
-                //     document.getElementById('sandboxBanner').classList.remove('hidden');
-                // }
+                console.warn('Sound recording error:', error.name);
             }
         }
         
@@ -1261,7 +1196,6 @@
                     console.error('Failed to create capsule:', error);
                 } else {
                     currentSession.capsuleId = data.id;
-                    console.log('🔧 Capsule created:', data);
                 }
             } catch (error) {
                 console.error('Error creating capsule:', error);
@@ -1290,7 +1224,6 @@
                     console.error('Failed to create fragment:', error);
                 } else {
                     currentSession.fragmentId = data.id;
-                    console.log('🔧 Fragment created:', data);
                 }
             } catch (error) {
                 console.error('Error creating fragment:', error);
@@ -1321,8 +1254,6 @@
                 
                 if (error) {
                     console.error('Failed to link audio to fragment:', error);
-                } else {
-                    console.log('🔧 Audio linked to fragment:', data);
                 }
             } catch (error) {
                 console.error('Error linking audio to fragment:', error);
