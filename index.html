@@ -222,7 +222,6 @@
     <div class="container">
         <!-- Header -->
         <div class="header">
-            <div class="score-text">score</div>
             <div id="scoreLine" class="score-text">Loading...</div>
         </div>
         
@@ -240,10 +239,6 @@
         <div id="introPhase" class="card">
             <div class="text-center">
                 <button class="btn" onclick="startNewSession()">Listen</button>
-                <div class="text-sm mt-4">
-                    <button class="btn btn-secondary btn-small" onclick="enableMicrophone()">Enable microphone</button>
-                    <div id="micStatus" class="text-sm">(optional — enables live recording if allowed)</div>
-                </div>
             </div>
         </div>
         
@@ -266,7 +261,8 @@
             <div class="text-center">
                 <div id="recordingStatus" class="text-sm mb-4">(ready to record)</div>
                 <div class="flex gap-3 justify-center">
-                    <button id="recordBtn" class="btn" onclick="startRecording()">🎤 Record</button>
+                    <button id="recordBtn" class="btn hidden" onclick="startRecording()">🎤 Record</button>
+                    <button id="stopBtn" class="btn btn-danger hidden" onclick="stopRecording()">⏹️ Stop</button>
                     <button id="soundBtn" class="btn hidden" onclick="goSoundFromListen()">Sound</button>
                 </div>
                 <audio id="listenAudio" class="audio-player hidden" controls></audio>
@@ -329,7 +325,7 @@
                 <p id="confirmMessage">Your score has been added to the Listening Archive.</p>
                 <p id="publicMessage" class="text-sm hidden">It is now part of the collective pool.</p>
                 <div class="flex gap-3 justify-center mt-4">
-                    <button class="btn btn-secondary btn-small" onclick="setPhase('listenChoice')">Start new loop</button>
+                    <button class="btn btn-secondary btn-small" onclick="chooseListenEnvironment()">Start new loop</button>
                     <button class="btn btn-small" onclick="newSession()">New session</button>
                 </div>
             </div>
@@ -595,20 +591,14 @@
         async function startNewSession() {
             await loadInitialScore();
             await createCapsule();
-            setPhase('listenChoice');
+            await createFragment();
+            setPhase('listening');
+            // Auto-start recording when entering listening phase
+            setTimeout(() => {
+                startRecording();
+            }, 100);
         }
         
-        function enableMicrophone() {
-            navigator.mediaDevices.getUserMedia({ audio: true })
-                .then(() => {
-                    micReady = true;
-                    document.getElementById('micStatus').textContent = 'Microphone enabled';
-                })
-                .catch((e) => {
-                    console.warn('Microphone access denied:', e);
-                    document.getElementById('micStatus').textContent = 'Microphone access denied';
-                });
-        }
         
         function setPhase(phase) {
             currentPhase = phase;
@@ -648,6 +638,10 @@
             currentListenUrl = null;
             await createFragment();
             setPhase('listening');
+            // Auto-start recording when entering listening phase
+            setTimeout(() => {
+                startRecording();
+            }, 100);
         }
         
         function chooseListenPast() {
@@ -698,7 +692,9 @@
                     currentListenUrl = URL.createObjectURL(blob);
                     document.getElementById('listenAudio').src = currentListenUrl;
                     document.getElementById('listenAudio').classList.remove('hidden');
+                    // После остановки показываем кнопку Sound вместо Record/Stop
                     document.getElementById('soundBtn').classList.remove('hidden');
+                    document.getElementById('stopBtn').classList.add('hidden');
                     
                     // Сохраняем в Supabase Storage
                     try {
@@ -723,12 +719,17 @@
                 mediaRecorder.start(1000); // Собираем данные каждую секунду
                 isRecording = true;
                 
-                document.getElementById('recordBtn').textContent = '⏹️ Stop';
-                document.getElementById('recordBtn').onclick = stopRecording;
+                // Показываем только кнопку Stop
+                document.getElementById('recordBtn').classList.add('hidden');
+                document.getElementById('stopBtn').classList.remove('hidden');
                 document.getElementById('recordingStatus').textContent = '🎤 Recording... (click Stop when done)';
                 
             } catch (error) {
                 console.error('Recording setup failed:', error);
+                
+                // При ошибке показываем кнопку Record и скрываем Stop
+                document.getElementById('recordBtn').classList.remove('hidden');
+                document.getElementById('stopBtn').classList.add('hidden');
                 
                 if (error.name === 'NotAllowedError') {
                     document.getElementById('recordingStatus').innerHTML = 
@@ -751,8 +752,8 @@
                 mediaRecorder.stop();
                 mediaRecorder.stream.getTracks().forEach(track => track.stop());
                 isRecording = false;
-                document.getElementById('recordBtn').textContent = '🎤 Record';
-                document.getElementById('recordBtn').onclick = startRecording;
+                // Скрываем Stop, показываем Sound (Record остается скрытой)
+                document.getElementById('stopBtn').classList.add('hidden');
             }
         }
         
