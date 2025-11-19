@@ -14,15 +14,16 @@ Use this file to track all requested changes and debugging steps. We’ll keep i
 - [ ] Fallback upload always available (file input) with progress indicator
 
 ### Priority 2 — UX polish
-- [ ] Hide the "score" heading text on the main screen (do not display it)
-- [ ] Remove diagnostics panel (PASS/PASS/PASS) from UI; end-users shouldn't see it
-- [ ] Remove helper text under microphone button ("optional — enables live recording if allowed")
+- [x] Hide the "score" heading text on the main screen (do not display it)
+- [x] Remove diagnostics panel (PASS/PASS/PASS) from UI; end-users shouldn't see it
+- [x] Remove helper text under microphone button ("optional — enables live recording if allowed")
 - [ ] Keep the initial score fixed across all phases (do not change on returning to Listen); also hide the word "score" in Listen phase
-- [ ] Remove the "Listen source" choice screen entirely; go straight to Listening
-- [ ] On entering Listening, immediately request mic (once per session) and auto-start recording
-- [ ] In Listening show only a single prominent "Stop" button (record auto-starts)
+- [x] Remove the "Listen source" choice screen entirely; go straight to Listening
+- [x] On entering Listening, immediately request mic (once per session) and auto-start recording
+- [x] In Listening show only a single prominent "Stop" button (record auto-starts)
 - [ ] Persist mic permission state to avoid repeated prompts within the session
-- [ ] After pressing Stop in Listening, go to Sound screen; pressing "Sound" auto-starts recording (no extra prompts), show only a single "Stop" button
+- [x] After pressing Stop in Listening, go to Sound screen; pressing "Sound" auto-starts recording (no extra prompts), show only a single "Stop" button
+- [x] Remove "Sound back" title and "your response to what you heard" text from Sound phase - just start recording immediately
 - [ ] After pressing Stop in Sound, show two choices: "Listen" (start a new listening cycle) and "Reflect"
 - [ ] If user chooses "Listen" after Sound, show two buttons: "Listen to environment" and "Listen to past listening (previous cycle)"
 - [ ] Unify copy/buttons across phases (Listen → Sound → Reflect → Create)

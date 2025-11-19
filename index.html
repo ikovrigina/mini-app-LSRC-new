@@ -180,6 +180,15 @@
             display: none;
         }
         
+        @keyframes pulse {
+            0%, 100% {
+                opacity: 1;
+            }
+            50% {
+                opacity: 0.5;
+            }
+        }
+        
         .session-summary {
             margin-top: 40px;
             padding-top: 20px;
@@ -245,13 +254,12 @@
         <!-- Listen Choice Phase -->
         <div id="listenChoicePhase" class="card hidden">
             <div class="card-title">Listen</div>
-            <div class="text-sm text-center mb-4">Choose the source of listening</div>
             <div class="grid grid-2">
                 <button class="btn" onclick="chooseListenEnvironment()">Environment</button>
                 <button class="btn btn-secondary" onclick="chooseListenPast()">Past capsule</button>
             </div>
-            <div id="reflectButton" class="text-center mt-4 hidden">
-                <button class="btn btn-secondary btn-small" onclick="setPhase('reflect')">Reflect</button>
+            <div class="text-center mt-4">
+                <button class="btn btn-secondary" onclick="setPhase('reflect')">Reflect</button>
             </div>
         </div>
         
@@ -275,13 +283,13 @@
         
         <!-- Sound Phase -->
         <div id="soundPhase" class="card hidden">
-            <div class="card-title">Sound back</div>
+            <div class="card-title">Sound</div>
             <div class="text-center">
-                <div class="text-sm mb-4">(your response to what you heard)</div>
-                <div id="soundRecordingStatus" class="text-sm mb-4">(ready to record)</div>
+                <div id="soundRecordingStatus" class="text-sm mb-4 hidden"></div>
                 <div class="flex gap-3 justify-center">
-                    <button id="soundRecordBtn" class="btn" onclick="startSoundRecording()">🎤 Record</button>
-                    <button id="soundContinueBtn" class="btn hidden" onclick="finishSound()">Continue</button>
+                    <button id="soundRecordBtn" class="btn hidden" onclick="startSoundRecording()">🎤 Record</button>
+                    <button id="soundStopBtn" class="btn btn-danger hidden" onclick="stopSoundRecording()">⏹️ Stop</button>
+                    <button id="soundContinueBtn" class="btn hidden" onclick="finishSound()">Sound</button>
                 </div>
                 <audio id="soundAudio" class="audio-player hidden" controls></audio>
                 <div id="soundUploadControls" class="mt-4 hidden">
@@ -333,7 +341,18 @@
         
         <!-- Session Summary -->
         <div id="sessionSummary" class="session-summary hidden">
-            <div class="text-sm uppercase tracking-wide" style="color: #9ca3af; margin-bottom: 8px;">Current session</div>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                <div class="text-sm uppercase tracking-wide" style="color: #9ca3af;">Current session</div>
+                <div id="liveRecordingControls" style="display: flex; gap: 8px; align-items: center;">
+                    <button id="startLiveBtn" class="btn btn-secondary btn-small" onclick="startLiveRecording()">🎙️ Record Live</button>
+                    <button id="stopLiveBtn" class="btn btn-danger btn-small hidden" onclick="stopLiveRecording()">⏹️ Stop Recording</button>
+                    <div id="liveRecordingIndicator" class="hidden" style="display: inline-flex; align-items: center; gap: 4px;">
+                        <span style="display: inline-block; width: 8px; height: 8px; background: #ef4444; border-radius: 50%; animation: pulse 1.5s ease-in-out infinite;"></span>
+                        <span class="text-xs" style="color: #ef4444;">Recording</span>
+                    </div>
+                    <button id="downloadLiveBtn" class="btn btn-small hidden" onclick="downloadLiveRecording()">⬇️ Download</button>
+                </div>
+            </div>
             <div id="fragmentsList"></div>
         </div>
     </div>
@@ -542,6 +561,14 @@
         let micReady = false;
         
         let currentUserId = null;
+        
+        // Live recording state
+        let isLiveRecording = false;
+        let liveRecordedChunks = [];
+        let liveAudioContext = null;
+        let liveMediaStreamDestination = null;
+        let liveMediaRecorder = null;
+        let liveRecordedAudioElements = [];
         let currentSession = {
             initialScore: null,
             initialScoreId: null,
@@ -615,17 +642,12 @@
             // Show current phase
             document.getElementById(currentPhase + 'Phase').classList.remove('hidden');
             
-            // Update session summary
-            if (fragments.length > 0) {
+            // Update session summary - показываем на всех экранах, кроме intro
+            if (fragments.length > 0 && currentPhase !== 'intro') {
                 document.getElementById('sessionSummary').classList.remove('hidden');
                 updateSessionSummary();
             } else {
                 document.getElementById('sessionSummary').classList.add('hidden');
-            }
-            
-            // Update reflect button visibility
-            if (fragments.length > 0) {
-                document.getElementById('reflectButton').classList.remove('hidden');
             }
             
             // Update sound navigation
@@ -760,15 +782,15 @@
         function goSoundFromListen() {
             setPhase('sound');
             currentSoundUrl = null;
+            // Auto-start recording when entering sound phase
+            setTimeout(() => {
+                startSoundRecording();
+            }, 100);
         }
         
         async function startSoundRecording() {
-            // Показать статус записи
             const statusElement = document.getElementById('soundRecordingStatus') || 
                                 document.getElementById('recordingStatus');
-            if (statusElement) {
-                statusElement.textContent = 'Requesting microphone access...';
-            }
             
             try {
                 // Проверяем поддержку MediaRecorder
@@ -808,19 +830,19 @@
                     currentSoundUrl = URL.createObjectURL(blob);
                     document.getElementById('soundAudio').src = currentSoundUrl;
                     document.getElementById('soundAudio').classList.remove('hidden');
-                    document.getElementById('soundContinueBtn').classList.remove('hidden');
+                    // После остановки автоматически возвращаемся на Listen Choice
+                    document.getElementById('soundStopBtn').classList.add('hidden');
+                    // Сразу переходим на Listen Choice
+                    setTimeout(() => {
+                        finishSound();
+                    }, 300);
                     
                     // Сохраняем в Supabase Storage
                     try {
                         await saveAudioToSupabase(blob, 'sound');
-                        if (statusElement) {
-                            statusElement.textContent = '✅ Audio saved successfully';
-                        }
+                        // Не показываем статус - интерфейс должен быть минималистичным
                     } catch (error) {
                         console.error('Failed to save sound audio:', error);
-                        if (statusElement) {
-                            statusElement.textContent = '⚠️ Audio recorded locally (save failed)';
-                        }
                     }
                     
                     // Останавливаем все треки
@@ -829,9 +851,6 @@
                 
                 mediaRecorder.onerror = (event) => {
                     console.error('MediaRecorder error:', event.error);
-                    if (statusElement) {
-                        statusElement.textContent = '❌ Recording error';
-                    }
                     stream.getTracks().forEach(track => track.stop());
                 };
                 
@@ -839,28 +858,22 @@
                 mediaRecorder.start(1000);
                 isRecording = true;
                 
-                document.getElementById('soundRecordBtn').textContent = '⏹️ Stop';
-                document.getElementById('soundRecordBtn').onclick = stopSoundRecording;
+                // Показываем только кнопку Stop
+                document.getElementById('soundRecordBtn').classList.add('hidden');
+                document.getElementById('soundStopBtn').classList.remove('hidden');
+                // Скрываем статус для минималистичного интерфейса
                 if (statusElement) {
-                    statusElement.textContent = '🎤 Recording sound... (click Stop when done)';
+                    statusElement.classList.add('hidden');
                 }
                 
             } catch (error) {
                 console.error('Sound recording setup failed:', error);
                 
-                if (statusElement) {
-                    if (error.name === 'NotAllowedError') {
-                        statusElement.innerHTML = 
-                            '❌ Microphone access denied.<br>Please allow microphone access and try again.';
-                    } else if (error.name === 'NotFoundError') {
-                        statusElement.innerHTML = 
-                            '❌ No microphone found.<br>Please connect a microphone and try again.';
-                    } else {
-                        statusElement.innerHTML = 
-                            '❌ Recording not available.<br>You can upload an audio file instead.';
-                    }
-                }
+                // При ошибке показываем кнопку Record и скрываем Stop
+                document.getElementById('soundRecordBtn').classList.remove('hidden');
+                document.getElementById('soundStopBtn').classList.add('hidden');
                 
+                // Показываем опцию загрузки файла при ошибке
                 const uploadControls = document.getElementById('soundUploadControls') || 
                                      document.getElementById('uploadControls');
                 if (uploadControls) {
@@ -876,21 +889,36 @@
                 mediaRecorder.stop();
                 mediaRecorder.stream.getTracks().forEach(track => track.stop());
                 isRecording = false;
-                document.getElementById('soundRecordBtn').textContent = '🎤 Record';
-                document.getElementById('soundRecordBtn').onclick = startSoundRecording;
+                // Скрываем Stop (Continue появится в onstop)
+                document.getElementById('soundStopBtn').classList.add('hidden');
             }
         }
         
         function finishSound() {
-            const fragment = {
-                listenSource: 'environment',
-                listenUrl: currentListenUrl,
-                soundUrl: currentSoundUrl,
-                cycleNumber: fragments.length + 1,
-            };
-            fragments.push(fragment);
+            // Проверяем, что у нас есть оба URL перед сохранением
+            if (currentListenUrl && currentSoundUrl) {
+                const fragment = {
+                    listenSource: 'environment',
+                    listenUrl: currentListenUrl,
+                    soundUrl: currentSoundUrl,
+                    cycleNumber: fragments.length + 1,
+                };
+                fragments.push(fragment);
+                console.log('Fragment added:', fragment);
+                console.log('Total fragments:', fragments.length);
+            } else {
+                console.warn('Missing URLs:', { listenUrl: currentListenUrl, soundUrl: currentSoundUrl });
+            }
+            
+            // Обнуляем переменные после сохранения
             currentListenUrl = null;
             currentSoundUrl = null;
+            
+            // Обновляем session summary и возвращаемся на Listen Choice
+            updateSessionSummary();
+            if (fragments.length > 0) {
+                document.getElementById('sessionSummary').classList.remove('hidden');
+            }
             setPhase('listenChoice');
         }
         
@@ -919,12 +947,6 @@
             
             const saved = await saveCapsuleToDatabase(capsule);
             
-            // Update confirm message
-            document.getElementById('confirmMessage').textContent = `Your score has been added to the Listening Archive.`;
-            if (isPublic) {
-                document.getElementById('publicMessage').classList.remove('hidden');
-            }
-            
             // Send data to Telegram if available
             if (tg && typeof tg.sendData === 'function') {
                 try {
@@ -942,7 +964,8 @@
                 }
             }
             
-            setPhase('done');
+            // Убираем экран подтверждения - сразу возвращаемся к новой сессии
+            newSession();
         }
         
         function newSession() {
@@ -1265,24 +1288,198 @@
             const fragmentsList = document.getElementById('fragmentsList');
             fragmentsList.innerHTML = '';
             
+            console.log('Updating session summary, fragments count:', fragments.length);
+            console.log('Fragments:', fragments);
+            
+            if (fragments.length === 0) {
+                console.log('No fragments to display');
+                return;
+            }
+            
             fragments.forEach((frag, i) => {
+                console.log(`Rendering fragment ${i + 1}:`, frag);
                 const fragmentDiv = document.createElement('div');
                 fragmentDiv.className = 'fragment';
+                
+                // Проверяем наличие URL перед отображением
+                const listenUrl = frag.listenUrl || '';
+                const soundUrl = frag.soundUrl || '';
+                
                 fragmentDiv.innerHTML = `
                     <div class="fragment-title">Cycle ${frag.cycleNumber} — ${frag.listenSource}</div>
                     <div class="fragment-audio">
                         <div>
                             <div class="audio-label">Listen</div>
-                            <audio controls class="audio-player" src="${frag.listenUrl}"></audio>
+                            ${listenUrl ? `<audio controls class="audio-player live-audio" data-type="listen" data-cycle="${frag.cycleNumber}" src="${listenUrl}"></audio>` : '<div class="text-sm text-gray-500">No audio</div>'}
                         </div>
                         <div>
                             <div class="audio-label">Sound</div>
-                            <audio controls class="audio-player" src="${frag.soundUrl}"></audio>
+                            ${soundUrl ? `<audio controls class="audio-player live-audio" data-type="sound" data-cycle="${frag.cycleNumber}" src="${soundUrl}"></audio>` : '<div class="text-sm text-gray-500">No audio</div>'}
                         </div>
                     </div>
                 `;
                 fragmentsList.appendChild(fragmentDiv);
+                
+                // Добавляем обработчики для записи лайва
+                if (isLiveRecording) {
+                    setupLiveRecordingForFragment(fragmentDiv);
+                }
             });
+        }
+        
+        // Live Recording Functions
+        async function startLiveRecording() {
+            try {
+                // Инициализируем Web Audio API
+                liveAudioContext = new (window.AudioContext || window.webkitAudioContext)();
+                liveMediaStreamDestination = liveAudioContext.createMediaStreamDestination();
+                
+                // Создаем MediaRecorder для записи потока
+                const audioStream = liveMediaStreamDestination.stream;
+                liveMediaRecorder = new MediaRecorder(audioStream, {
+                    mimeType: 'audio/webm;codecs=opus'
+                });
+                
+                liveRecordedChunks = [];
+                liveRecordedAudioElements = [];
+                
+                liveMediaRecorder.ondataavailable = (event) => {
+                    if (event.data.size > 0) {
+                        liveRecordedChunks.push(event.data);
+                    }
+                };
+                
+                liveMediaRecorder.start(1000); // Собираем данные каждую секунду
+                isLiveRecording = true;
+                
+                // Обновляем UI
+                document.getElementById('startLiveBtn').classList.add('hidden');
+                document.getElementById('stopLiveBtn').classList.remove('hidden');
+                document.getElementById('liveRecordingIndicator').classList.remove('hidden');
+                document.getElementById('downloadLiveBtn').classList.add('hidden');
+                
+                // Настраиваем запись для существующих аудио элементов
+                setupLiveRecordingForAllFragments();
+                
+                console.log('Live recording started');
+            } catch (error) {
+                console.error('Failed to start live recording:', error);
+                alert('Failed to start recording. Please try again.');
+            }
+        }
+        
+        function stopLiveRecording() {
+            if (liveMediaRecorder && isLiveRecording) {
+                liveMediaRecorder.stop();
+                isLiveRecording = false;
+                
+                // Обновляем UI
+                document.getElementById('startLiveBtn').classList.remove('hidden');
+                document.getElementById('stopLiveBtn').classList.add('hidden');
+                document.getElementById('liveRecordingIndicator').classList.add('hidden');
+                
+                // Отключаем все аудио от записи
+                disconnectAllLiveRecordings();
+                
+                console.log('Live recording stopped');
+                
+                // Показываем кнопку скачивания после остановки
+                if (liveRecordedChunks.length > 0) {
+                    document.getElementById('downloadLiveBtn').classList.remove('hidden');
+                }
+            }
+        }
+        
+        function setupLiveRecordingForAllFragments() {
+            const audioElements = document.querySelectorAll('.live-audio');
+            audioElements.forEach(audio => {
+                setupLiveRecordingForAudio(audio);
+            });
+        }
+        
+        function setupLiveRecordingForFragment(fragmentDiv) {
+            const audioElements = fragmentDiv.querySelectorAll('.live-audio');
+            audioElements.forEach(audio => {
+                setupLiveRecordingForAudio(audio);
+            });
+        }
+        
+        function setupLiveRecordingForAudio(audioElement) {
+            // Проверяем, не подключено ли уже это аудио
+            if (audioElement.dataset.liveConnected === 'true') {
+                return;
+            }
+            
+            audioElement.addEventListener('play', async () => {
+                if (isLiveRecording && liveAudioContext && !audioElement.dataset.liveConnected) {
+                    try {
+                        // Если AudioContext приостановлен, возобновляем
+                        if (liveAudioContext.state === 'suspended') {
+                            await liveAudioContext.resume();
+                        }
+                        
+                        // Создаем источник из аудио элемента
+                        // createMediaElementSource автоматически отключает аудио от его выхода
+                        // поэтому нужно подключить к обоим: к destination для записи и к выходу для воспроизведения
+                        const source = liveAudioContext.createMediaElementSource(audioElement);
+                        
+                        // Подключаем к записи
+                        source.connect(liveMediaStreamDestination);
+                        
+                        // Также подключаем к выходу для воспроизведения
+                        source.connect(liveAudioContext.destination);
+                        
+                        // Отмечаем, что аудио подключено
+                        audioElement.dataset.liveConnected = 'true';
+                        
+                        console.log('Audio element connected to live recording:', audioElement.src);
+                    } catch (error) {
+                        console.error('Failed to connect audio to live recording:', error);
+                        // Пытаемся воспроизвести без записи, если запись не удалась
+                        audioElement.dataset.liveConnected = 'error';
+                    }
+                }
+            });
+        }
+        
+        function disconnectAllLiveRecordings() {
+            const audioElements = document.querySelectorAll('.live-audio');
+            audioElements.forEach(audio => {
+                audio.dataset.liveConnected = 'false';
+            });
+            
+            if (liveAudioContext) {
+                liveAudioContext.close();
+                liveAudioContext = null;
+            }
+            liveMediaStreamDestination = null;
+        }
+        
+        function downloadLiveRecording() {
+            if (liveRecordedChunks.length === 0) {
+                alert('No recording available to download.');
+                return;
+            }
+            
+            // Создаем blob из записанных чанков
+            const blob = new Blob(liveRecordedChunks, { type: 'audio/webm' });
+            const url = URL.createObjectURL(blob);
+            
+            // Создаем ссылку для скачивания
+            const a = document.createElement('a');
+            a.href = url;
+            const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+            a.download = `lsrc-live-${timestamp}.webm`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            
+            // Очищаем URL через некоторое время
+            setTimeout(() => {
+                URL.revokeObjectURL(url);
+            }, 100);
+            
+            console.log('Live recording downloaded');
         }
         
         // Fallback to localStorage if Supabase fails
