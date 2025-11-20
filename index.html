@@ -231,7 +231,7 @@
     <div class="container">
         <!-- Header -->
         <div class="header">
-            <div id="scoreLine" class="score-text">Loading...</div>
+            <div id="scoreLine" class="score-text hidden"></div>
         </div>
         
         <!-- Supabase Connection Status -->
@@ -247,8 +247,8 @@
         <!-- Intro Phase -->
         <div id="introPhase" class="card">
             <div class="text-center">
-                <button class="btn" onclick="startNewSession()">Listen</button>
-                </div>
+                <button class="btn" onclick="startNewSession()">Listen.Sound.Reflect.Create</button>
+            </div>
         </div>
         
         
@@ -576,8 +576,8 @@
         document.addEventListener('DOMContentLoaded', async function() {
             initializeTelegram();
             await initializeSupabase();
-            // Загружаем начальный score для отображения, но он изменится при создании капсулы
-            await loadInitialScore();
+            // Score НЕ загружаем при открытии - он появится только при нажатии на кнопку
+            document.getElementById('scoreLine').textContent = '';
             updateUI();
         });
         
@@ -609,7 +609,10 @@
             const score = await getRandomScore();
             currentSession.initialScore = score;
             currentSession.initialScoreId = score.id;
-            document.getElementById('scoreLine').textContent = score.text;
+            // Показываем score после загрузки
+            const scoreLine = document.getElementById('scoreLine');
+            scoreLine.textContent = score.text;
+            scoreLine.classList.remove('hidden');
         }
         
         async function startNewSession() {
