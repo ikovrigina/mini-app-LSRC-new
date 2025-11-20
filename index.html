@@ -576,6 +576,7 @@
         document.addEventListener('DOMContentLoaded', async function() {
             initializeTelegram();
             await initializeSupabase();
+            // Загружаем начальный score для отображения, но он изменится при создании капсулы
             await loadInitialScore();
             updateUI();
         });
@@ -612,6 +613,7 @@
         }
         
         async function startNewSession() {
+            // Загружаем новый score для новой капсулы
             await loadInitialScore();
             await createCapsule();
             await createFragment();
@@ -911,7 +913,8 @@
         }
         
         async function startNewCycle() {
-            // Начинаем новый цикл Listen -> Sound
+            // Начинаем новый цикл Listen -> Sound внутри той же капсулы
+            // Score НЕ меняем - он остается тем же для всей капсулы
             currentListenUrl = null;
             currentSoundUrl = null;
             await createFragment();
@@ -1068,14 +1071,15 @@
             newSession();
         }
         
-        function newSession() {
+        async function newSession() {
             fragments = [];
             currentListenUrl = null;
             currentSoundUrl = null;
             document.getElementById('reflectionText').value = '';
             document.getElementById('userScoreTitle').value = '';
             document.getElementById('isPublic').checked = true;
-            loadInitialScore();
+            // Загружаем новый score для новой капсулы
+            await loadInitialScore();
             setPhase('intro');
         }
         
