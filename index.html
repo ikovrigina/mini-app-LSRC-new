@@ -316,7 +316,6 @@
         
         <!-- Done Phase -->
         <div id="donePhase" class="card hidden">
-            <div class="card-title">✨ Quiet confirmation</div>
             <div class="text-center">
                 <p id="confirmMessage">Your score has been added to the Listening Archive.</p>
                 <p id="publicMessage" class="text-sm hidden">It is now part of the collective pool.</p>
@@ -333,10 +332,6 @@
                 <div id="liveRecordingControls" style="display: flex; gap: 8px; align-items: center;">
                     <button id="startLiveBtn" class="btn btn-secondary btn-small" onclick="startLiveRecording()">🎙️ Record Live</button>
                     <button id="stopLiveBtn" class="btn btn-danger btn-small hidden" onclick="stopLiveRecording()">⏹️ Stop Recording</button>
-                    <div id="liveRecordingIndicator" class="hidden" style="display: inline-flex; align-items: center; gap: 4px;">
-                        <span style="display: inline-block; width: 8px; height: 8px; background: #ef4444; border-radius: 50%; animation: pulse 1.5s ease-in-out infinite;"></span>
-                        <span class="text-xs" style="color: #ef4444;">Recording</span>
-                    </div>
                     <button id="downloadLiveBtn" class="btn btn-small hidden" onclick="downloadLiveRecording()">⬇️ Download</button>
                 </div>
             </div>
@@ -1054,11 +1049,8 @@
             
             // Обновляем сообщение подтверждения
             document.getElementById('confirmMessage').textContent = 'Your score has been added to the Listening Archive.';
-            if (isPublic) {
-                document.getElementById('publicMessage').classList.remove('hidden');
-            } else {
-                document.getElementById('publicMessage').classList.add('hidden');
-            }
+            // Показываем сообщение о collective pool всегда
+            document.getElementById('publicMessage').classList.remove('hidden');
             
             // Send data to Telegram if available
             if (tg && typeof tg.sendData === 'function') {
@@ -1478,7 +1470,6 @@
                 // Обновляем UI
                 document.getElementById('startLiveBtn').classList.add('hidden');
                 document.getElementById('stopLiveBtn').classList.remove('hidden');
-                document.getElementById('liveRecordingIndicator').classList.remove('hidden');
                 document.getElementById('downloadLiveBtn').classList.add('hidden');
                 
                 // Настраиваем запись для существующих аудио элементов
@@ -1499,7 +1490,6 @@
                 // Обновляем UI
                 document.getElementById('startLiveBtn').classList.remove('hidden');
                 document.getElementById('stopLiveBtn').classList.add('hidden');
-                document.getElementById('liveRecordingIndicator').classList.add('hidden');
                 
                 // Отключаем все аудио от записи
                 disconnectAllLiveRecordings();
