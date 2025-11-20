@@ -321,8 +321,7 @@
                 <p id="confirmMessage">Your score has been added to the Listening Archive.</p>
                 <p id="publicMessage" class="text-sm hidden">It is now part of the collective pool.</p>
                 <div class="flex gap-3 justify-center mt-4">
-                    <button class="btn btn-secondary btn-small" onclick="chooseListenEnvironment()">Start new loop</button>
-                    <button class="btn btn-small" onclick="newSession()">New session</button>
+                    <button class="btn" onclick="startNewSession()">Listen.Sound.Reflect.Create</button>
                 </div>
             </div>
         </div>
@@ -1053,6 +1052,14 @@
             
             const saved = await saveCapsuleToDatabase(capsule);
             
+            // Обновляем сообщение подтверждения
+            document.getElementById('confirmMessage').textContent = 'Your score has been added to the Listening Archive.';
+            if (isPublic) {
+                document.getElementById('publicMessage').classList.remove('hidden');
+            } else {
+                document.getElementById('publicMessage').classList.add('hidden');
+            }
+            
             // Send data to Telegram if available
             if (tg && typeof tg.sendData === 'function') {
                 try {
@@ -1070,8 +1077,8 @@
                 }
             }
             
-            // Убираем экран подтверждения - сразу возвращаемся к новой сессии
-            newSession();
+            // Показываем экран подтверждения
+            setPhase('done');
         }
         
         async function newSession() {
