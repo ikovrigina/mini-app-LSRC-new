@@ -248,20 +248,9 @@
         <div id="introPhase" class="card">
             <div class="text-center">
                 <button class="btn" onclick="startNewSession()">Listen</button>
-            </div>
+                </div>
         </div>
         
-        <!-- Listen Choice Phase -->
-        <div id="listenChoicePhase" class="card hidden">
-            <div class="card-title">Listen</div>
-            <div class="grid grid-2">
-                <button class="btn" onclick="chooseListenEnvironment()">Environment</button>
-                <button class="btn btn-secondary" onclick="chooseListenPast()">Past capsule</button>
-            </div>
-            <div class="text-center mt-4">
-                <button class="btn btn-secondary" onclick="setPhase('reflect')">Reflect</button>
-            </div>
-        </div>
         
         <!-- Listening Environment Phase -->
         <div id="listeningPhase" class="card hidden">
@@ -271,7 +260,6 @@
                 <div class="flex gap-3 justify-center">
                     <button id="recordBtn" class="btn hidden" onclick="startRecording()">🎤 Record</button>
                     <button id="stopBtn" class="btn btn-danger hidden" onclick="stopRecording()">⏹️ Stop</button>
-                    <button id="soundBtn" class="btn hidden" onclick="goSoundFromListen()">Sound</button>
                 </div>
                 <audio id="listenAudio" class="audio-player hidden" controls></audio>
                 <div id="uploadControls" class="mt-4 hidden">
@@ -297,8 +285,8 @@
                     <button class="btn btn-secondary btn-small" onclick="createSilentAudio('sound')">Use silent sample</button>
                 </div>
                 <div id="soundNavigation" class="mt-6 flex gap-3 justify-center hidden">
-                    <button class="btn btn-secondary btn-small" onclick="setPhase('listenChoice')">Listen again</button>
-                    <button class="btn btn-small" onclick="setPhase('reflect')">Reflect</button>
+                    <button class="btn btn-secondary" onclick="startNewCycle()">Listen</button>
+                    <button class="btn" onclick="setPhase('reflect')">Reflect</button>
                 </div>
             </div>
         </div>
@@ -354,6 +342,14 @@
                 </div>
             </div>
             <div id="fragmentsList"></div>
+        </div>
+        
+        <!-- Past Capsules -->
+        <div id="pastCapsulesSection" class="session-summary" style="margin-top: 40px;">
+            <div class="text-sm uppercase tracking-wide" style="color: #9ca3af; margin-bottom: 8px;">Past capsules</div>
+            <div id="pastCapsulesList" class="text-sm text-gray-500 text-center" style="padding: 20px;">
+                <button class="btn btn-secondary btn-small" onclick="loadPastCapsules()">Load past capsules</button>
+            </div>
         </div>
     </div>
 
@@ -634,7 +630,7 @@
         
         function updateUI() {
             // Hide all phases
-            const phases = ['introPhase', 'listenChoicePhase', 'listeningPhase', 'soundPhase', 'reflectPhase', 'createPhase', 'donePhase'];
+            const phases = ['introPhase', 'listeningPhase', 'soundPhase', 'reflectPhase', 'createPhase', 'donePhase'];
             phases.forEach(phase => {
                 document.getElementById(phase).classList.add('hidden');
             });
@@ -656,21 +652,6 @@
             }
         }
         
-        async function chooseListenEnvironment() {
-            currentListenUrl = null;
-            await createFragment();
-            setPhase('listening');
-            // Auto-start recording when entering listening phase
-            setTimeout(() => {
-                startRecording();
-            }, 100);
-        }
-        
-        function chooseListenPast() {
-            // For simplicity, we'll skip past capsules in this version
-            alert('Past capsules feature will be available in the full version');
-            setPhase('listenChoice');
-        }
         
         async function startRecording() {
             // Показать статус записи
@@ -714,9 +695,12 @@
                     currentListenUrl = URL.createObjectURL(blob);
                     document.getElementById('listenAudio').src = currentListenUrl;
                     document.getElementById('listenAudio').classList.remove('hidden');
-                    // После остановки показываем кнопку Sound вместо Record/Stop
-                    document.getElementById('soundBtn').classList.remove('hidden');
+                    // После остановки автоматически переходим к Sound
                     document.getElementById('stopBtn').classList.add('hidden');
+                    // Автоматически переходим к Sound phase
+                    setTimeout(() => {
+                        goSoundFromListen();
+                    }, 300);
                     
                     // Сохраняем в Supabase Storage
                     try {
@@ -774,7 +758,7 @@
                 mediaRecorder.stop();
                 mediaRecorder.stream.getTracks().forEach(track => track.stop());
                 isRecording = false;
-                // Скрываем Stop, показываем Sound (Record остается скрытой)
+                // Скрываем Stop - переход к Sound произойдет в onstop callback
                 document.getElementById('stopBtn').classList.add('hidden');
             }
         }
@@ -830,9 +814,9 @@
                     currentSoundUrl = URL.createObjectURL(blob);
                     document.getElementById('soundAudio').src = currentSoundUrl;
                     document.getElementById('soundAudio').classList.remove('hidden');
-                    // После остановки автоматически возвращаемся на Listen Choice
+                    // После остановки показываем навигацию: Listen или Reflect
                     document.getElementById('soundStopBtn').classList.add('hidden');
-                    // Сразу переходим на Listen Choice
+                    // Показываем кнопки выбора после записи
                     setTimeout(() => {
                         finishSound();
                     }, 300);
@@ -897,13 +881,13 @@
         function finishSound() {
             // Проверяем, что у нас есть оба URL перед сохранением
             if (currentListenUrl && currentSoundUrl) {
-                const fragment = {
-                    listenSource: 'environment',
-                    listenUrl: currentListenUrl,
-                    soundUrl: currentSoundUrl,
-                    cycleNumber: fragments.length + 1,
-                };
-                fragments.push(fragment);
+            const fragment = {
+                listenSource: 'environment',
+                listenUrl: currentListenUrl,
+                soundUrl: currentSoundUrl,
+                cycleNumber: fragments.length + 1,
+            };
+            fragments.push(fragment);
                 console.log('Fragment added:', fragment);
                 console.log('Total fragments:', fragments.length);
             } else {
@@ -914,12 +898,128 @@
             currentListenUrl = null;
             currentSoundUrl = null;
             
-            // Обновляем session summary и возвращаемся на Listen Choice
+            // Обновляем session summary и показываем выбор: Listen или Reflect
             updateSessionSummary();
             if (fragments.length > 0) {
                 document.getElementById('sessionSummary').classList.remove('hidden');
             }
-            setPhase('listenChoice');
+            
+            // Показываем навигацию после Sound
+            document.getElementById('soundNavigation').classList.remove('hidden');
+            
+            // Остаемся на Sound phase, но показываем кнопки выбора
+        }
+        
+        async function startNewCycle() {
+            // Начинаем новый цикл Listen -> Sound
+            currentListenUrl = null;
+            currentSoundUrl = null;
+            await createFragment();
+            setPhase('listening');
+            // Auto-start recording when entering listening phase
+            setTimeout(() => {
+                startRecording();
+            }, 100);
+        }
+        
+        async function loadPastCapsules() {
+            const pastCapsulesList = document.getElementById('pastCapsulesList');
+            pastCapsulesList.innerHTML = '<div class="text-sm text-gray-500">Loading...</div>';
+            
+            try {
+                // Загружаем капсулы из Supabase
+                const { data: capsules, error } = await supabase
+                    .from('capsules')
+                    .select('id, user_score_title, created_at, is_public')
+                    .order('created_at', { ascending: false })
+                    .limit(10);
+                
+                if (error) throw error;
+                
+                if (!capsules || capsules.length === 0) {
+                    pastCapsulesList.innerHTML = '<div class="text-sm text-gray-500">No past capsules yet</div>';
+                    return;
+                }
+                
+                // Отображаем список капсул
+                let html = '';
+                capsules.forEach(capsule => {
+                    const date = new Date(capsule.created_at).toLocaleDateString();
+                    html += `
+                        <div class="card" style="margin-bottom: 12px;">
+                            <div class="fragment-title">${capsule.user_score_title || 'Untitled'}</div>
+                            <div class="text-sm text-gray-500 mb-2">${date} ${capsule.is_public ? '• Public' : '• Private'}</div>
+                            <button class="btn btn-secondary btn-small" onclick="playPastCapsule('${capsule.id}')">Listen</button>
+                        </div>
+                    `;
+                });
+                
+                pastCapsulesList.innerHTML = html;
+            } catch (error) {
+                console.error('Failed to load past capsules:', error);
+                pastCapsulesList.innerHTML = '<div class="text-sm text-red-500">Failed to load capsules</div>';
+            }
+        }
+        
+        async function playPastCapsule(capsuleId) {
+            try {
+                // Загружаем фрагменты капсулы
+                const { data: fragments, error } = await supabase
+                    .from('fragments')
+                    .select('*, audio_files(*)')
+                    .eq('capsule_id', capsuleId)
+                    .order('cycle_number', { ascending: true });
+                
+                if (error) throw error;
+                
+                if (!fragments || fragments.length === 0) {
+                    alert('No fragments found in this capsule');
+                    return;
+                }
+                
+                // Создаем временный список для прослушивания
+                const playList = [];
+                fragments.forEach(frag => {
+                    if (frag.audio_files) {
+                        frag.audio_files.forEach(audio => {
+                            if (audio.file_type === 'listen' && audio.file_url) {
+                                playList.push({ url: audio.file_url, type: 'Listen' });
+                            } else if (audio.file_type === 'sound' && audio.file_url) {
+                                playList.push({ url: audio.file_url, type: 'Sound' });
+                            }
+                        });
+                    }
+                });
+                
+                // Воспроизводим последовательно
+                if (playList.length > 0) {
+                    playAudioSequence(playList, 0);
+                }
+            } catch (error) {
+                console.error('Failed to load capsule:', error);
+                alert('Failed to load capsule');
+            }
+        }
+        
+        function playAudioSequence(playList, index) {
+            if (index >= playList.length) {
+                console.log('Finished playing capsule');
+                return;
+            }
+            
+            const audio = new Audio(playList[index].url);
+            console.log(`Playing ${playList[index].type}: ${playList[index].url}`);
+            
+            audio.onended = () => {
+                playAudioSequence(playList, index + 1);
+            };
+            
+            audio.onerror = (error) => {
+                console.error(`Error playing ${playList[index].type}:`, error);
+                playAudioSequence(playList, index + 1);
+            };
+            
+            audio.play();
         }
         
         async function saveCapsule() {
@@ -1132,12 +1232,18 @@
                 currentListenUrl = url;
                 document.getElementById('listenAudio').src = url;
                 document.getElementById('listenAudio').classList.remove('hidden');
-                document.getElementById('soundBtn').classList.remove('hidden');
+                // Автоматически переходим к Sound после загрузки
+                setTimeout(() => {
+                    goSoundFromListen();
+                }, 300);
             } else if (type === 'sound') {
                 currentSoundUrl = url;
                 document.getElementById('soundAudio').src = url;
                 document.getElementById('soundAudio').classList.remove('hidden');
-                document.getElementById('soundContinueBtn').classList.remove('hidden');
+                // Показываем навигацию после Sound
+                setTimeout(() => {
+                    finishSound();
+                }, 300);
             }
         }
         
@@ -1189,7 +1295,10 @@
                 currentListenUrl = url;
                 document.getElementById('listenAudio').src = url;
                 document.getElementById('listenAudio').classList.remove('hidden');
-                document.getElementById('soundBtn').classList.remove('hidden');
+                // Автоматически переходим к Sound после загрузки
+                setTimeout(() => {
+                    goSoundFromListen();
+                }, 300);
             } else if (type === 'sound') {
                 currentSoundUrl = url;
                 document.getElementById('soundAudio').src = url;
