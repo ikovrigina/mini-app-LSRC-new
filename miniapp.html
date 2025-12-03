@@ -849,38 +849,85 @@
             }
             
             try {
-                // Get capsules with fragments that have audio
+                // Get capsules with their scores
                 const { data: capsules, error } = await supabase
                     .from('capsules')
                     .select(`
                         id,
                         created_at,
                         is_public,
-                        initial_score_id,
-                        scores!capsules_initial_score_id_fkey(text),
-                        fragments(
-                            id,
-                            cycle_number,
-                            listen_audio_id,
-                            sound_audio_id,
-                            audio_files_listen:audio_files!fragments_listen_audio_id_fkey(file_url),
-                            audio_files_sound:audio_files!fragments_sound_audio_id_fkey(file_url)
-                        )
+                        user_id,
+                        initial_score_id
                     `)
-                    .or(`user_id.eq.${currentUserId},is_public.eq.true`)
+                    .eq('is_public', true)
                     .order('created_at', { ascending: false })
-                    .limit(20);
+                    .limit(30);
                 
                 if (error) throw error;
                 
-                // Filter capsules that have at least one fragment with audio
-                const capsulesWithAudio = capsules.filter(c => 
-                    c.fragments && c.fragments.some(f => 
-                        f.audio_files_listen?.file_url || f.audio_files_sound?.file_url
-                    )
-                );
+                if (!capsules || capsules.length === 0) {
+                    listEl.innerHTML = '<div class="text-sm text-gray-500">No past capsules found</div>';
+                    return;
+                }
                 
-                if (!capsulesWithAudio || capsulesWithAudio.length === 0) {
+                // Get fragments with audio for these capsules
+                const capsuleIds = capsules.map(c => c.id);
+                const { data: fragments, error: fragError } = await supabase
+                    .from('fragments')
+                    .select(`
+                        id,
+                        capsule_id,
+                        cycle_number,
+                        listen_audio_id,
+                        sound_audio_id
+                    `)
+                    .in('capsule_id', capsuleIds);
+                
+                if (fragError) throw fragError;
+                
+                // Get audio files for fragments
+                const listenAudioIds = fragments.filter(f => f.listen_audio_id).map(f => f.listen_audio_id);
+                const soundAudioIds = fragments.filter(f => f.sound_audio_id).map(f => f.sound_audio_id);
+                const allAudioIds = [...new Set([...listenAudioIds, ...soundAudioIds])];
+                
+                let audioFiles = [];
+                if (allAudioIds.length > 0) {
+                    const { data: audioData, error: audioError } = await supabase
+                        .from('audio_files')
+                        .select('id, file_url')
+                        .in('id', allAudioIds);
+                    if (!audioError) audioFiles = audioData;
+                }
+                
+                // Get scores for capsules
+                const scoreIds = [...new Set(capsules.map(c => c.initial_score_id).filter(Boolean))];
+                let scores = [];
+                if (scoreIds.length > 0) {
+                    const { data: scoreData, error: scoreError } = await supabase
+                        .from('scores')
+                        .select('id, text')
+                        .in('id', scoreIds);
+                    if (!scoreError) scores = scoreData;
+                }
+                
+                // Build audio lookup
+                const audioLookup = {};
+                audioFiles.forEach(a => audioLookup[a.id] = a.file_url);
+                
+                // Build score lookup
+                const scoreLookup = {};
+                scores.forEach(s => scoreLookup[s.id] = s.text);
+                
+                // Filter capsules that have fragments with audio
+                const capsulesWithAudio = capsules.filter(capsule => {
+                    const capsuleFragments = fragments.filter(f => f.capsule_id === capsule.id);
+                    return capsuleFragments.some(f => 
+                        (f.listen_audio_id && audioLookup[f.listen_audio_id]) ||
+                        (f.sound_audio_id && audioLookup[f.sound_audio_id])
+                    );
+                });
+                
+                if (capsulesWithAudio.length === 0) {
                     listEl.innerHTML = '<div class="text-sm text-gray-500">No past capsules with audio found</div>';
                     return;
                 }
@@ -891,15 +938,17 @@
                     const date = new Date(capsule.created_at).toLocaleDateString('en-US', {
                         month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'
                     });
-                    const scoreText = capsule.scores?.text || 'Unknown score';
-                    const fragmentCount = capsule.fragments.filter(f => 
-                        f.audio_files_listen?.file_url || f.audio_files_sound?.file_url
-                    ).length;
+                    const scoreText = scoreLookup[capsule.initial_score_id] || 'Unknown score';
+                    const capsuleFragments = fragments.filter(f => f.capsule_id === capsule.id);
+                    const fragmentsWithAudio = capsuleFragments.filter(f => 
+                        (f.listen_audio_id && audioLookup[f.listen_audio_id]) ||
+                        (f.sound_audio_id && audioLookup[f.sound_audio_id])
+                    );
                     
                     html += `
                         <div class="fragment" style="margin-bottom: 12px; cursor: pointer;" onclick="selectPastCapsule('${capsule.id}')">
                             <div class="fragment-title" style="font-style: italic;">"${scoreText.substring(0, 50)}${scoreText.length > 50 ? '...' : ''}"</div>
-                            <div class="text-sm" style="color: #6b7280;">${date} • ${fragmentCount} cycle${fragmentCount > 1 ? 's' : ''}</div>
+                            <div class="text-sm" style="color: #6b7280;">${date} • ${fragmentsWithAudio.length} cycle${fragmentsWithAudio.length > 1 ? 's' : ''}</div>
                         </div>
                     `;
                 });
@@ -908,7 +957,7 @@
                 
             } catch (error) {
                 console.error('Failed to load past capsules:', error);
-                listEl.innerHTML = '<div class="text-sm" style="color: #dc2626;">Failed to load capsules</div>';
+                listEl.innerHTML = '<div class="text-sm" style="color: #dc2626;">Failed to load capsules: ' + error.message + '</div>';
             }
         }
         
@@ -919,28 +968,55 @@
             if (!supabaseConnected) return;
             
             try {
-                // Get capsule with fragments and audio
+                // Get capsule
                 const { data: capsule, error } = await supabase
                     .from('capsules')
-                    .select(`
-                        id,
-                        created_at,
-                        scores!capsules_initial_score_id_fkey(text),
-                        fragments(
-                            id,
-                            cycle_number,
-                            audio_files_listen:audio_files!fragments_listen_audio_id_fkey(file_url),
-                            audio_files_sound:audio_files!fragments_sound_audio_id_fkey(file_url)
-                        )
-                    `)
+                    .select('id, created_at, initial_score_id')
                     .eq('id', capsuleId)
                     .single();
                 
                 if (error) throw error;
                 
+                // Get score text
+                let scoreText = 'Unknown score';
+                if (capsule.initial_score_id) {
+                    const { data: score } = await supabase
+                        .from('scores')
+                        .select('text')
+                        .eq('id', capsule.initial_score_id)
+                        .single();
+                    if (score) scoreText = score.text;
+                }
+                
+                // Get fragments with audio
+                const { data: fragments, error: fragError } = await supabase
+                    .from('fragments')
+                    .select('id, cycle_number, listen_audio_id, sound_audio_id')
+                    .eq('capsule_id', capsuleId)
+                    .order('cycle_number', { ascending: true });
+                
+                if (fragError) throw fragError;
+                
+                // Get audio files
+                const listenIds = fragments.filter(f => f.listen_audio_id).map(f => f.listen_audio_id);
+                const soundIds = fragments.filter(f => f.sound_audio_id).map(f => f.sound_audio_id);
+                const allIds = [...new Set([...listenIds, ...soundIds])];
+                
+                let audioLookup = {};
+                if (allIds.length > 0) {
+                    const { data: audioFiles } = await supabase
+                        .from('audio_files')
+                        .select('id, file_url')
+                        .in('id', allIds);
+                    if (audioFiles) {
+                        audioFiles.forEach(a => audioLookup[a.id] = a.file_url);
+                    }
+                }
+                
                 // Find first fragment with audio
-                const fragmentWithAudio = capsule.fragments.find(f => 
-                    f.audio_files_listen?.file_url || f.audio_files_sound?.file_url
+                const fragmentWithAudio = fragments.find(f => 
+                    (f.listen_audio_id && audioLookup[f.listen_audio_id]) ||
+                    (f.sound_audio_id && audioLookup[f.sound_audio_id])
                 );
                 
                 if (!fragmentWithAudio) {
@@ -948,15 +1024,18 @@
                     return;
                 }
                 
+                const listenUrl = audioLookup[fragmentWithAudio.listen_audio_id] || null;
+                const soundUrl = audioLookup[fragmentWithAudio.sound_audio_id] || null;
+                
                 selectedPastCapsule = {
                     capsule,
                     fragment: fragmentWithAudio,
-                    listenUrl: fragmentWithAudio.audio_files_listen?.file_url,
-                    soundUrl: fragmentWithAudio.audio_files_sound?.file_url
+                    listenUrl,
+                    soundUrl,
+                    scoreText
                 };
                 
                 // Update UI
-                const scoreText = capsule.scores?.text || 'Unknown score';
                 const date = new Date(capsule.created_at).toLocaleDateString('en-US', {
                     month: 'short', day: 'numeric', year: 'numeric'
                 });
@@ -970,15 +1049,15 @@
                 const listenAudio = document.getElementById('pastListenAudio');
                 const soundAudio = document.getElementById('pastSoundAudio');
                 
-                if (selectedPastCapsule.listenUrl) {
-                    listenAudio.src = selectedPastCapsule.listenUrl;
+                if (listenUrl) {
+                    listenAudio.src = listenUrl;
                     listenAudio.style.display = 'block';
                 } else {
                     listenAudio.style.display = 'none';
                 }
                 
-                if (selectedPastCapsule.soundUrl) {
-                    soundAudio.src = selectedPastCapsule.soundUrl;
+                if (soundUrl) {
+                    soundAudio.src = soundUrl;
                     soundAudio.style.display = 'block';
                 } else {
                     soundAudio.style.display = 'none';
@@ -988,7 +1067,7 @@
                 
             } catch (error) {
                 console.error('Failed to load capsule:', error);
-                alert('Failed to load capsule');
+                alert('Failed to load capsule: ' + error.message);
             }
         }
         
