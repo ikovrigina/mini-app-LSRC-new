@@ -1,9 +1,8 @@
 # Telegram Bot Dependencies
-python-telegram-bot==21.6
-supabase==2.9.1
+python-telegram-bot==20.7
+supabase==2.3.0
 requests==2.31.0
 python-dotenv==1.0.0
-openai==1.51.0
 
 # Optional: for better async support
 aiohttp==3.9.1
