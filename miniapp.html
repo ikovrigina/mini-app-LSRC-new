@@ -267,6 +267,40 @@
             </div>
         </div>
         
+        <!-- Past Capsules Phase -->
+        <div id="pastCapsulesPhase" class="card hidden">
+            <div class="card-title">Past Capsules</div>
+            <div class="text-sm text-center mb-4">Select a capsule to listen to</div>
+            <div id="pastCapsulesList" class="text-center">
+                <div class="text-sm text-gray-500">Loading...</div>
+            </div>
+            <div class="text-center mt-4">
+                <button class="btn btn-secondary btn-small" onclick="setPhase('listenChoice')">← Back</button>
+            </div>
+        </div>
+        
+        <!-- Past Capsule Player Phase -->
+        <div id="pastPlayerPhase" class="card hidden">
+            <div class="card-title">Listening to Past Capsule</div>
+            <div id="pastCapsuleInfo" class="text-sm text-center mb-4"></div>
+            <div class="fragment" style="margin-bottom: 16px;">
+                <div class="fragment-audio">
+                    <div>
+                        <div class="audio-label">Listen</div>
+                        <audio id="pastListenAudio" class="audio-player" controls></audio>
+                    </div>
+                    <div>
+                        <div class="audio-label">Sound</div>
+                        <audio id="pastSoundAudio" class="audio-player" controls></audio>
+                    </div>
+                </div>
+            </div>
+            <div class="text-center">
+                <button class="btn" onclick="usePastCapsuleAsSource()">Use as listening source</button>
+                <button class="btn btn-secondary btn-small mt-4" onclick="setPhase('pastCapsules')">← Choose another</button>
+            </div>
+        </div>
+        
         <!-- Listening Environment Phase -->
         <div id="listeningPhase" class="card hidden">
             <div class="card-title">Listening…</div>
@@ -685,21 +719,21 @@
             }
         }
         
-        async function createFragment() {
+        async function createFragment(listenSource = 'environment') {
             if (!supabase || !currentSession.capsuleId) {
                 console.error('Cannot create fragment: missing capsule');
                 return;
             }
             
             try {
-                console.log('🔧 Creating fragment for capsule:', currentSession.capsuleId);
+                console.log('🔧 Creating fragment for capsule:', currentSession.capsuleId, 'source:', listenSource);
                 
                 const { data, error } = await supabase
                     .from('fragments')
                     .insert({
                         capsule_id: currentSession.capsuleId,
                         cycle_number: fragments.length + 1,
-                        listen_source: 'environment'
+                        listen_source: listenSource
                     })
                     .select()
                     .single();
@@ -765,7 +799,7 @@
         
         function updateUI() {
             // Hide all phases
-            const phases = ['introPhase', 'listenChoicePhase', 'listeningPhase', 'soundPhase', 'reflectPhase', 'createPhase', 'donePhase'];
+            const phases = ['introPhase', 'listenChoicePhase', 'pastCapsulesPhase', 'pastPlayerPhase', 'listeningPhase', 'soundPhase', 'reflectPhase', 'createPhase', 'donePhase'];
             phases.forEach(phase => {
                 document.getElementById(phase).classList.add('hidden');
             });
@@ -799,10 +833,184 @@
             setPhase('listening');
         }
         
-        function chooseListenPast() {
-            // For simplicity, we'll skip past capsules in this version
-            alert('Past capsules feature will be available in the full version');
-            setPhase('listenChoice');
+        async function chooseListenPast() {
+            setPhase('pastCapsules');
+            await loadPastCapsules();
+        }
+        
+        // Load past capsules from database
+        async function loadPastCapsules() {
+            const listEl = document.getElementById('pastCapsulesList');
+            listEl.innerHTML = '<div class="text-sm text-gray-500">Loading...</div>';
+            
+            if (!supabaseConnected) {
+                listEl.innerHTML = '<div class="text-sm text-gray-500">Database not connected</div>';
+                return;
+            }
+            
+            try {
+                // Get capsules with fragments that have audio
+                const { data: capsules, error } = await supabase
+                    .from('capsules')
+                    .select(`
+                        id,
+                        created_at,
+                        is_public,
+                        initial_score_id,
+                        scores!capsules_initial_score_id_fkey(text),
+                        fragments(
+                            id,
+                            cycle_number,
+                            listen_audio_id,
+                            sound_audio_id,
+                            audio_files_listen:audio_files!fragments_listen_audio_id_fkey(file_url),
+                            audio_files_sound:audio_files!fragments_sound_audio_id_fkey(file_url)
+                        )
+                    `)
+                    .or(`user_id.eq.${currentUserId},is_public.eq.true`)
+                    .order('created_at', { ascending: false })
+                    .limit(20);
+                
+                if (error) throw error;
+                
+                // Filter capsules that have at least one fragment with audio
+                const capsulesWithAudio = capsules.filter(c => 
+                    c.fragments && c.fragments.some(f => 
+                        f.audio_files_listen?.file_url || f.audio_files_sound?.file_url
+                    )
+                );
+                
+                if (!capsulesWithAudio || capsulesWithAudio.length === 0) {
+                    listEl.innerHTML = '<div class="text-sm text-gray-500">No past capsules with audio found</div>';
+                    return;
+                }
+                
+                // Build HTML for capsules list
+                let html = '';
+                capsulesWithAudio.forEach(capsule => {
+                    const date = new Date(capsule.created_at).toLocaleDateString('en-US', {
+                        month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'
+                    });
+                    const scoreText = capsule.scores?.text || 'Unknown score';
+                    const fragmentCount = capsule.fragments.filter(f => 
+                        f.audio_files_listen?.file_url || f.audio_files_sound?.file_url
+                    ).length;
+                    
+                    html += `
+                        <div class="fragment" style="margin-bottom: 12px; cursor: pointer;" onclick="selectPastCapsule('${capsule.id}')">
+                            <div class="fragment-title" style="font-style: italic;">"${scoreText.substring(0, 50)}${scoreText.length > 50 ? '...' : ''}"</div>
+                            <div class="text-sm" style="color: #6b7280;">${date} • ${fragmentCount} cycle${fragmentCount > 1 ? 's' : ''}</div>
+                        </div>
+                    `;
+                });
+                
+                listEl.innerHTML = html;
+                
+            } catch (error) {
+                console.error('Failed to load past capsules:', error);
+                listEl.innerHTML = '<div class="text-sm" style="color: #dc2626;">Failed to load capsules</div>';
+            }
+        }
+        
+        // Select and display a past capsule
+        let selectedPastCapsule = null;
+        
+        async function selectPastCapsule(capsuleId) {
+            if (!supabaseConnected) return;
+            
+            try {
+                // Get capsule with fragments and audio
+                const { data: capsule, error } = await supabase
+                    .from('capsules')
+                    .select(`
+                        id,
+                        created_at,
+                        scores!capsules_initial_score_id_fkey(text),
+                        fragments(
+                            id,
+                            cycle_number,
+                            audio_files_listen:audio_files!fragments_listen_audio_id_fkey(file_url),
+                            audio_files_sound:audio_files!fragments_sound_audio_id_fkey(file_url)
+                        )
+                    `)
+                    .eq('id', capsuleId)
+                    .single();
+                
+                if (error) throw error;
+                
+                // Find first fragment with audio
+                const fragmentWithAudio = capsule.fragments.find(f => 
+                    f.audio_files_listen?.file_url || f.audio_files_sound?.file_url
+                );
+                
+                if (!fragmentWithAudio) {
+                    alert('No audio found in this capsule');
+                    return;
+                }
+                
+                selectedPastCapsule = {
+                    capsule,
+                    fragment: fragmentWithAudio,
+                    listenUrl: fragmentWithAudio.audio_files_listen?.file_url,
+                    soundUrl: fragmentWithAudio.audio_files_sound?.file_url
+                };
+                
+                // Update UI
+                const scoreText = capsule.scores?.text || 'Unknown score';
+                const date = new Date(capsule.created_at).toLocaleDateString('en-US', {
+                    month: 'short', day: 'numeric', year: 'numeric'
+                });
+                
+                document.getElementById('pastCapsuleInfo').innerHTML = `
+                    <div style="font-style: italic; margin-bottom: 8px;">"${scoreText}"</div>
+                    <div style="color: #6b7280;">Recorded on ${date}</div>
+                `;
+                
+                // Set audio sources
+                const listenAudio = document.getElementById('pastListenAudio');
+                const soundAudio = document.getElementById('pastSoundAudio');
+                
+                if (selectedPastCapsule.listenUrl) {
+                    listenAudio.src = selectedPastCapsule.listenUrl;
+                    listenAudio.style.display = 'block';
+                } else {
+                    listenAudio.style.display = 'none';
+                }
+                
+                if (selectedPastCapsule.soundUrl) {
+                    soundAudio.src = selectedPastCapsule.soundUrl;
+                    soundAudio.style.display = 'block';
+                } else {
+                    soundAudio.style.display = 'none';
+                }
+                
+                setPhase('pastPlayer');
+                
+            } catch (error) {
+                console.error('Failed to load capsule:', error);
+                alert('Failed to load capsule');
+            }
+        }
+        
+        // Use past capsule audio as listening source for new cycle
+        async function usePastCapsuleAsSource() {
+            if (!selectedPastCapsule) return;
+            
+            // Create a new fragment with past_capsule as source
+            await createFragment('past_capsule');
+            
+            // Use the listen or sound audio from past capsule as our "listen" source
+            const audioUrl = selectedPastCapsule.listenUrl || selectedPastCapsule.soundUrl;
+            
+            if (audioUrl) {
+                currentListenUrl = audioUrl;
+                document.getElementById('listenAudio').src = audioUrl;
+                document.getElementById('listenAudio').classList.remove('hidden');
+                document.getElementById('soundBtn').classList.remove('hidden');
+                document.getElementById('recordingStatus').textContent = '🎧 Listening to past capsule';
+            }
+            
+            setPhase('listening');
         }
         
         async function startRecording() {
