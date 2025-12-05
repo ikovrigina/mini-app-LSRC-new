@@ -847,7 +847,7 @@
             }
             
             try {
-                // Get capsules with their scores
+                // Get user's own capsules
                 const { data: capsules, error } = await supabase
                     .from('capsules')
                     .select(`
@@ -857,7 +857,7 @@
                         user_id,
                         initial_score_id
                     `)
-                    .eq('is_public', true)
+                    .eq('user_id', currentUserId)
                     .order('created_at', { ascending: false })
                     .limit(30);
                 
