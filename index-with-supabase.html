@@ -421,7 +421,8 @@
         // ========================================
         
         // Get random score from database with weighted selection
-        // Priority: oliveros_original (50%) > deep_listening (35%) > user_created/community (15%)
+        // Priority: oliveros_original (75%) > user_created/community (25%)
+        // Only Humans: all scores are written by real people
         async function getRandomScore() {
             if (!supabaseConnected) {
                 return { text: "Walk so silently that the bottoms of your feet become ears." };
@@ -432,14 +433,11 @@
                 const roll = Math.random() * 100;
                 let sourceFilter;
                 
-                if (roll < 50) {
-                    // 50% chance: Pauline Oliveros originals
+                if (roll < 75) {
+                    // 75% chance: Pauline Oliveros originals
                     sourceFilter = ['oliveros_original'];
-                } else if (roll < 85) {
-                    // 35% chance: Deep Listening based scores
-                    sourceFilter = ['deep_listening'];
                 } else {
-                    // 15% chance: User created and community scores
+                    // 25% chance: User created and community scores
                     sourceFilter = ['user_created', 'community'];
                 }
                 
