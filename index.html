@@ -965,7 +965,7 @@
                     .select('id, created_at, is_public, user_id, initial_score_id')
                     .eq('user_id', currentUserId)
                     .order('created_at', { ascending: false })
-                    .limit(20);
+                    .limit(30);
                 
                 if (error) throw error;
                 
@@ -974,8 +974,27 @@
                     return;
                 }
                 
+                // Get fragments to check which capsules have audio
+                const capsuleIds = capsules.map(c => c.id);
+                const { data: fragments } = await supabase
+                    .from('fragments')
+                    .select('capsule_id, listen_audio_id, sound_audio_id')
+                    .in('capsule_id', capsuleIds);
+                
+                // Filter capsules that have at least one audio
+                const capsulesWithAudio = capsules.filter(c => 
+                    fragments && fragments.some(f => 
+                        f.capsule_id === c.id && (f.listen_audio_id || f.sound_audio_id)
+                    )
+                );
+                
+                if (capsulesWithAudio.length === 0) {
+                    pastCapsulesList.innerHTML = '<div class="text-sm text-gray-500">No capsules with audio yet</div>';
+                    return;
+                }
+                
                 // Get scores for capsules
-                const scoreIds = [...new Set(capsules.map(c => c.initial_score_id).filter(Boolean))];
+                const scoreIds = [...new Set(capsulesWithAudio.map(c => c.initial_score_id).filter(Boolean))];
                 let scoreLookup = {};
                 if (scoreIds.length > 0) {
                     const { data: scores } = await supabase
@@ -985,9 +1004,9 @@
                     if (scores) scores.forEach(s => scoreLookup[s.id] = s.text);
                 }
                 
-                // Display capsules
+                // Display capsules with audio only
                 let html = '';
-                capsules.forEach(capsule => {
+                capsulesWithAudio.forEach(capsule => {
                     const date = new Date(capsule.created_at).toLocaleDateString();
                     const scoreText = scoreLookup[capsule.initial_score_id] || 'Unknown score';
                     html += `
