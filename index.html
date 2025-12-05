@@ -959,12 +959,13 @@
             pastCapsulesList.innerHTML = '<div class="text-sm text-gray-500">Loading...</div>';
             
             try {
-                // Загружаем капсулы из Supabase
+                // Get user's own capsules
                 const { data: capsules, error } = await supabase
                     .from('capsules')
-                    .select('id, user_score_title, created_at, is_public')
+                    .select('id, created_at, is_public, user_id, initial_score_id')
+                    .eq('user_id', currentUserId)
                     .order('created_at', { ascending: false })
-                    .limit(10);
+                    .limit(20);
                 
                 if (error) throw error;
                 
@@ -973,14 +974,26 @@
                     return;
                 }
                 
-                // Отображаем список капсул
+                // Get scores for capsules
+                const scoreIds = [...new Set(capsules.map(c => c.initial_score_id).filter(Boolean))];
+                let scoreLookup = {};
+                if (scoreIds.length > 0) {
+                    const { data: scores } = await supabase
+                        .from('scores')
+                        .select('id, text')
+                        .in('id', scoreIds);
+                    if (scores) scores.forEach(s => scoreLookup[s.id] = s.text);
+                }
+                
+                // Display capsules
                 let html = '';
                 capsules.forEach(capsule => {
                     const date = new Date(capsule.created_at).toLocaleDateString();
+                    const scoreText = scoreLookup[capsule.initial_score_id] || 'Unknown score';
                     html += `
                         <div class="card" style="margin-bottom: 12px;">
-                            <div class="fragment-title">${capsule.user_score_title || 'Untitled'}</div>
-                            <div class="text-sm text-gray-500 mb-2">${date} ${capsule.is_public ? '• Public' : '• Private'}</div>
+                            <div class="fragment-title" style="font-style: italic;">"${scoreText.substring(0, 40)}${scoreText.length > 40 ? '...' : ''}"</div>
+                            <div class="text-sm text-gray-500 mb-2">${date}</div>
                             <button class="btn btn-secondary btn-small" onclick="playPastCapsule('${capsule.id}')">Listen</button>
                         </div>
                     `;
@@ -989,16 +1002,16 @@
                 pastCapsulesList.innerHTML = html;
             } catch (error) {
                 console.error('Failed to load past capsules:', error);
-                pastCapsulesList.innerHTML = '<div class="text-sm text-red-500">Failed to load capsules</div>';
+                pastCapsulesList.innerHTML = '<div class="text-sm text-red-500">Failed to load: ' + error.message + '</div>';
             }
         }
         
         async function playPastCapsule(capsuleId) {
             try {
-                // Загружаем фрагменты капсулы
+                // Get fragments for this capsule
                 const { data: fragments, error } = await supabase
                     .from('fragments')
-                    .select('*, audio_files(*)')
+                    .select('id, cycle_number, listen_audio_id, sound_audio_id')
                     .eq('capsule_id', capsuleId)
                     .order('cycle_number', { ascending: true });
                 
@@ -1009,27 +1022,40 @@
                     return;
                 }
                 
-                // Создаем временный список для прослушивания
+                // Get audio files
+                const listenIds = fragments.filter(f => f.listen_audio_id).map(f => f.listen_audio_id);
+                const soundIds = fragments.filter(f => f.sound_audio_id).map(f => f.sound_audio_id);
+                const allIds = [...new Set([...listenIds, ...soundIds])];
+                
+                let audioLookup = {};
+                if (allIds.length > 0) {
+                    const { data: audioFiles } = await supabase
+                        .from('audio_files')
+                        .select('id, file_url')
+                        .in('id', allIds);
+                    if (audioFiles) audioFiles.forEach(a => audioLookup[a.id] = a.file_url);
+                }
+                
+                // Build playlist
                 const playList = [];
                 fragments.forEach(frag => {
-                    if (frag.audio_files) {
-                        frag.audio_files.forEach(audio => {
-                            if (audio.file_type === 'listen' && audio.file_url) {
-                                playList.push({ url: audio.file_url, type: 'Listen' });
-                            } else if (audio.file_type === 'sound' && audio.file_url) {
-                                playList.push({ url: audio.file_url, type: 'Sound' });
-                            }
-                        });
+                    if (frag.listen_audio_id && audioLookup[frag.listen_audio_id]) {
+                        playList.push({ url: audioLookup[frag.listen_audio_id], type: 'Listen' });
+                    }
+                    if (frag.sound_audio_id && audioLookup[frag.sound_audio_id]) {
+                        playList.push({ url: audioLookup[frag.sound_audio_id], type: 'Sound' });
                     }
                 });
                 
-                // Воспроизводим последовательно
+                // Play sequentially
                 if (playList.length > 0) {
                     playAudioSequence(playList, 0);
+                } else {
+                    alert('No audio found in this capsule');
                 }
             } catch (error) {
                 console.error('Failed to load capsule:', error);
-                alert('Failed to load capsule');
+                alert('Failed to load capsule: ' + error.message);
             }
         }
         
