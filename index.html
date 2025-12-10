@@ -1009,7 +1009,7 @@
                 }
                 
                 // Display capsules with audio only
-                let html = '<div id="pastCapsulePlayer" style="margin-bottom: 16px; display: none;"><audio id="pastAudioPlayer" controls style="width: 100%;"></audio><div id="playingInfo" class="text-sm text-center mt-2"></div></div>';
+                let html = '<div id="pastCapsulePlayer" class="card" style="margin-bottom: 16px; display: none; background: #f0f9ff; border: 2px solid #3b82f6;"></div>';
                 capsulesWithAudio.forEach(capsule => {
                     const date = new Date(capsule.created_at).toLocaleDateString();
                     const initialScore = scoreLookup[capsule.initial_score_id] || '';
@@ -1032,11 +1032,16 @@
             }
         }
         
-        let currentPlaylist = [];
-        let currentPlayIndex = 0;
+        let selectedCapsuleId = null;
         
         async function playPastCapsule(capsuleId) {
+            selectedCapsuleId = capsuleId;
+            const playerContainer = document.getElementById('pastCapsulePlayer');
+            
             try {
+                playerContainer.innerHTML = '<div class="text-sm">Loading audio...</div>';
+                playerContainer.style.display = 'block';
+                
                 // Get fragments for this capsule
                 const { data: fragments, error } = await supabase
                     .from('fragments')
@@ -1047,7 +1052,7 @@
                 if (error) throw error;
                 
                 if (!fragments || fragments.length === 0) {
-                    alert('No fragments found in this capsule');
+                    playerContainer.innerHTML = '<div class="text-sm text-red-500">No fragments found</div>';
                     return;
                 }
                 
@@ -1056,70 +1061,66 @@
                 const soundIds = fragments.filter(f => f.sound_audio_id).map(f => f.sound_audio_id);
                 const allIds = [...new Set([...listenIds, ...soundIds])];
                 
-                let audioLookup = {};
-                if (allIds.length > 0) {
-                    const { data: audioFiles } = await supabase
-                        .from('audio_files')
-                        .select('id, file_url')
-                        .in('id', allIds);
-                    if (audioFiles) audioFiles.forEach(a => audioLookup[a.id] = a.file_url);
+                if (allIds.length === 0) {
+                    playerContainer.innerHTML = '<div class="text-sm text-red-500">No audio files found</div>';
+                    return;
                 }
                 
-                // Build playlist
-                currentPlaylist = [];
+                let audioLookup = {};
+                const { data: audioFiles } = await supabase
+                    .from('audio_files')
+                    .select('id, file_url')
+                    .in('id', allIds);
+                if (audioFiles) audioFiles.forEach(a => audioLookup[a.id] = a.file_url);
+                
+                // Build player HTML with individual audio elements
+                let html = '<div class="text-sm font-bold mb-2">🎧 Audio Player</div>';
+                let audioCount = 0;
+                
                 fragments.forEach((frag, i) => {
                     if (frag.listen_audio_id && audioLookup[frag.listen_audio_id]) {
-                        currentPlaylist.push({ url: audioLookup[frag.listen_audio_id], type: `Cycle ${i+1}: Listen` });
+                        audioCount++;
+                        html += `
+                            <div style="margin-bottom: 8px;">
+                                <div class="text-xs text-gray-500">Cycle ${i+1}: Listen</div>
+                                <audio controls style="width: 100%; height: 40px;" preload="metadata">
+                                    <source src="${audioLookup[frag.listen_audio_id]}" type="audio/webm">
+                                </audio>
+                            </div>
+                        `;
                     }
                     if (frag.sound_audio_id && audioLookup[frag.sound_audio_id]) {
-                        currentPlaylist.push({ url: audioLookup[frag.sound_audio_id], type: `Cycle ${i+1}: Sound` });
+                        audioCount++;
+                        html += `
+                            <div style="margin-bottom: 8px;">
+                                <div class="text-xs text-gray-500">Cycle ${i+1}: Sound</div>
+                                <audio controls style="width: 100%; height: 40px;" preload="metadata">
+                                    <source src="${audioLookup[frag.sound_audio_id]}" type="audio/webm">
+                                </audio>
+                            </div>
+                        `;
                     }
                 });
                 
-                // Play using visible audio player
-                if (currentPlaylist.length > 0) {
-                    currentPlayIndex = 0;
-                    showAndPlayAudio();
-                } else {
-                    alert('No audio found in this capsule');
+                if (audioCount === 0) {
+                    html = '<div class="text-sm text-red-500">No audio found</div>';
                 }
+                
+                html += '<button class="btn btn-secondary btn-small mt-2" onclick="closePastPlayer()">Close</button>';
+                playerContainer.innerHTML = html;
+                
             } catch (error) {
                 console.error('Failed to load capsule:', error);
-                alert('Failed to load capsule: ' + error.message);
+                playerContainer.innerHTML = `<div class="text-sm text-red-500">Error: ${error.message}</div>`;
             }
         }
         
-        function showAndPlayAudio() {
+        function closePastPlayer() {
             const playerContainer = document.getElementById('pastCapsulePlayer');
-            const audioPlayer = document.getElementById('pastAudioPlayer');
-            const playingInfo = document.getElementById('playingInfo');
-            
-            if (!playerContainer || !audioPlayer || currentPlayIndex >= currentPlaylist.length) {
-                if (playerContainer) playerContainer.style.display = 'none';
-                if (playingInfo) playingInfo.textContent = '✅ Finished';
-                return;
+            if (playerContainer) {
+                playerContainer.style.display = 'none';
+                playerContainer.innerHTML = '';
             }
-            
-            playerContainer.style.display = 'block';
-            const track = currentPlaylist[currentPlayIndex];
-            audioPlayer.src = track.url;
-            playingInfo.textContent = `🎧 ${track.type} (${currentPlayIndex + 1}/${currentPlaylist.length})`;
-            
-            audioPlayer.onended = () => {
-                currentPlayIndex++;
-                showAndPlayAudio();
-            };
-            
-            audioPlayer.onerror = () => {
-                console.error('Error playing:', track.url);
-                currentPlayIndex++;
-                showAndPlayAudio();
-            };
-            
-            audioPlayer.play().catch(e => {
-                console.log('Autoplay blocked, user needs to press play');
-                playingInfo.textContent = `🎧 ${track.type} - Press play`;
-            });
         }
         
         async function saveCapsule() {
