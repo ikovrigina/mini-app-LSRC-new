@@ -981,22 +981,18 @@
                     .select('capsule_id, listen_audio_id, sound_audio_id')
                     .in('capsule_id', capsuleIds);
                 
-                // Filter capsules that have at least one audio
-                const capsulesWithAudio = capsules.filter(c => 
-                    fragments && fragments.some(f => 
+                // Check which capsules have audio
+                const capsulesWithAudioStatus = capsules.map(c => ({
+                    ...c,
+                    hasAudio: fragments && fragments.some(f => 
                         f.capsule_id === c.id && (f.listen_audio_id || f.sound_audio_id)
                     )
-                );
-                
-                if (capsulesWithAudio.length === 0) {
-                    pastCapsulesList.innerHTML = '<div class="text-sm text-gray-500">No capsules with audio yet</div>';
-                    return;
-                }
+                }));
                 
                 // Get ALL scores (initial and final)
                 const allScoreIds = [...new Set([
-                    ...capsulesWithAudio.map(c => c.initial_score_id),
-                    ...capsulesWithAudio.map(c => c.final_score_id)
+                    ...capsulesWithAudioStatus.map(c => c.initial_score_id),
+                    ...capsulesWithAudioStatus.map(c => c.final_score_id)
                 ].filter(Boolean))];
                 
                 let scoreLookup = {};
@@ -1008,19 +1004,22 @@
                     if (scores) scores.forEach(s => scoreLookup[s.id] = s.text);
                 }
                 
-                // Display capsules with audio only
+                // Display ALL capsules
                 let html = '<div id="pastCapsulePlayer" class="card" style="margin-bottom: 16px; display: none; background: #f0f9ff; border: 2px solid #3b82f6;"></div>';
-                capsulesWithAudio.forEach(capsule => {
+                capsulesWithAudioStatus.forEach(capsule => {
                     const date = new Date(capsule.created_at).toLocaleDateString();
                     const initialScore = scoreLookup[capsule.initial_score_id] || '';
                     const finalScore = scoreLookup[capsule.final_score_id] || '';
                     
                     html += `
-                        <div class="card" style="margin-bottom: 12px;">
+                        <div class="card" style="margin-bottom: 12px; ${!capsule.hasAudio ? 'opacity: 0.8;' : ''}">
                             <div class="text-sm text-gray-500">${date}</div>
                             ${initialScore ? `<div class="fragment-title" style="font-style: italic; margin-top: 4px;">"${initialScore.substring(0, 50)}${initialScore.length > 50 ? '...' : ''}"</div>` : ''}
-                            ${finalScore ? `<div class="text-sm" style="color: #10b981; margin-top: 8px;">✍️ "${finalScore.substring(0, 50)}${finalScore.length > 50 ? '...' : ''}"</div>` : ''}
-                            <button class="btn btn-secondary btn-small mt-2" onclick="playPastCapsule('${capsule.id}')">▶️ Listen</button>
+                            ${finalScore ? `<div class="text-sm" style="color: #10b981; margin-top: 8px;">✍️ "${finalScore.substring(0, 50)}${finalScore.length > 50 ? '...' : ''}"</div>` : '<div class="text-xs text-gray-400 mt-1">(no score created)</div>'}
+                            ${capsule.hasAudio 
+                                ? `<button class="btn btn-secondary btn-small mt-2" onclick="playPastCapsule('${capsule.id}')">▶️ Listen</button>`
+                                : `<div class="text-xs text-gray-400 mt-2">🔇 No audio</div>`
+                            }
                         </div>
                     `;
                 });
