@@ -959,10 +959,10 @@
             pastCapsulesList.innerHTML = '<div class="text-sm text-gray-500">Loading...</div>';
             
             try {
-                // Get user's own capsules
+                // Get user's own capsules (including final_score_id)
                 const { data: capsules, error } = await supabase
                     .from('capsules')
-                    .select('id, created_at, is_public, user_id, initial_score_id')
+                    .select('id, created_at, is_public, user_id, initial_score_id, final_score_id')
                     .eq('user_id', currentUserId)
                     .order('created_at', { ascending: false })
                     .limit(30);
@@ -993,27 +993,34 @@
                     return;
                 }
                 
-                // Get scores for capsules
-                const scoreIds = [...new Set(capsulesWithAudio.map(c => c.initial_score_id).filter(Boolean))];
+                // Get ALL scores (initial and final)
+                const allScoreIds = [...new Set([
+                    ...capsulesWithAudio.map(c => c.initial_score_id),
+                    ...capsulesWithAudio.map(c => c.final_score_id)
+                ].filter(Boolean))];
+                
                 let scoreLookup = {};
-                if (scoreIds.length > 0) {
+                if (allScoreIds.length > 0) {
                     const { data: scores } = await supabase
                         .from('scores')
                         .select('id, text')
-                        .in('id', scoreIds);
+                        .in('id', allScoreIds);
                     if (scores) scores.forEach(s => scoreLookup[s.id] = s.text);
                 }
                 
                 // Display capsules with audio only
-                let html = '';
+                let html = '<div id="pastCapsulePlayer" style="margin-bottom: 16px; display: none;"><audio id="pastAudioPlayer" controls style="width: 100%;"></audio><div id="playingInfo" class="text-sm text-center mt-2"></div></div>';
                 capsulesWithAudio.forEach(capsule => {
                     const date = new Date(capsule.created_at).toLocaleDateString();
-                    const scoreText = scoreLookup[capsule.initial_score_id] || 'Unknown score';
+                    const initialScore = scoreLookup[capsule.initial_score_id] || '';
+                    const finalScore = scoreLookup[capsule.final_score_id] || '';
+                    
                     html += `
                         <div class="card" style="margin-bottom: 12px;">
-                            <div class="fragment-title" style="font-style: italic;">"${scoreText.substring(0, 40)}${scoreText.length > 40 ? '...' : ''}"</div>
-                            <div class="text-sm text-gray-500 mb-2">${date}</div>
-                            <button class="btn btn-secondary btn-small" onclick="playPastCapsule('${capsule.id}')">Listen</button>
+                            <div class="text-sm text-gray-500">${date}</div>
+                            ${initialScore ? `<div class="fragment-title" style="font-style: italic; margin-top: 4px;">"${initialScore.substring(0, 50)}${initialScore.length > 50 ? '...' : ''}"</div>` : ''}
+                            ${finalScore ? `<div class="text-sm" style="color: #10b981; margin-top: 8px;">✍️ "${finalScore.substring(0, 50)}${finalScore.length > 50 ? '...' : ''}"</div>` : ''}
+                            <button class="btn btn-secondary btn-small mt-2" onclick="playPastCapsule('${capsule.id}')">▶️ Listen</button>
                         </div>
                     `;
                 });
@@ -1024,6 +1031,9 @@
                 pastCapsulesList.innerHTML = '<div class="text-sm text-red-500">Failed to load: ' + error.message + '</div>';
             }
         }
+        
+        let currentPlaylist = [];
+        let currentPlayIndex = 0;
         
         async function playPastCapsule(capsuleId) {
             try {
@@ -1056,19 +1066,20 @@
                 }
                 
                 // Build playlist
-                const playList = [];
-                fragments.forEach(frag => {
+                currentPlaylist = [];
+                fragments.forEach((frag, i) => {
                     if (frag.listen_audio_id && audioLookup[frag.listen_audio_id]) {
-                        playList.push({ url: audioLookup[frag.listen_audio_id], type: 'Listen' });
+                        currentPlaylist.push({ url: audioLookup[frag.listen_audio_id], type: `Cycle ${i+1}: Listen` });
                     }
                     if (frag.sound_audio_id && audioLookup[frag.sound_audio_id]) {
-                        playList.push({ url: audioLookup[frag.sound_audio_id], type: 'Sound' });
+                        currentPlaylist.push({ url: audioLookup[frag.sound_audio_id], type: `Cycle ${i+1}: Sound` });
                     }
                 });
                 
-                // Play sequentially
-                if (playList.length > 0) {
-                    playAudioSequence(playList, 0);
+                // Play using visible audio player
+                if (currentPlaylist.length > 0) {
+                    currentPlayIndex = 0;
+                    showAndPlayAudio();
                 } else {
                     alert('No audio found in this capsule');
                 }
@@ -1078,25 +1089,37 @@
             }
         }
         
-        function playAudioSequence(playList, index) {
-            if (index >= playList.length) {
-                console.log('Finished playing capsule');
+        function showAndPlayAudio() {
+            const playerContainer = document.getElementById('pastCapsulePlayer');
+            const audioPlayer = document.getElementById('pastAudioPlayer');
+            const playingInfo = document.getElementById('playingInfo');
+            
+            if (!playerContainer || !audioPlayer || currentPlayIndex >= currentPlaylist.length) {
+                if (playerContainer) playerContainer.style.display = 'none';
+                if (playingInfo) playingInfo.textContent = '✅ Finished';
                 return;
             }
             
-            const audio = new Audio(playList[index].url);
-            console.log(`Playing ${playList[index].type}: ${playList[index].url}`);
+            playerContainer.style.display = 'block';
+            const track = currentPlaylist[currentPlayIndex];
+            audioPlayer.src = track.url;
+            playingInfo.textContent = `🎧 ${track.type} (${currentPlayIndex + 1}/${currentPlaylist.length})`;
             
-            audio.onended = () => {
-                playAudioSequence(playList, index + 1);
+            audioPlayer.onended = () => {
+                currentPlayIndex++;
+                showAndPlayAudio();
             };
             
-            audio.onerror = (error) => {
-                console.error(`Error playing ${playList[index].type}:`, error);
-                playAudioSequence(playList, index + 1);
+            audioPlayer.onerror = () => {
+                console.error('Error playing:', track.url);
+                currentPlayIndex++;
+                showAndPlayAudio();
             };
             
-            audio.play();
+            audioPlayer.play().catch(e => {
+                console.log('Autoplay blocked, user needs to press play');
+                playingInfo.textContent = `🎧 ${track.type} - Press play`;
+            });
         }
         
         async function saveCapsule() {
