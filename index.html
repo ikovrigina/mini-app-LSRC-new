@@ -504,58 +504,60 @@
                     finalScoreId = scoreData.id;
                 }
                 
-                // Save capsule
-                const { data: capsule, error: capsuleError } = await supabase
-                    .from('capsules')
-                    .insert({
-                        user_id: currentUserId,
-                        initial_score_id: currentSession.initialScoreId,
-                        final_score_id: finalScoreId,
-                        is_public: capsuleData.isPublic,
-                        transport: inTelegram ? 'telegram_webapp' : 'web'
-                    })
-                    .select()
-                    .single();
+                // Use existing capsule (created at session start) instead of creating new one
+                const capsuleId = currentSession.capsuleId;
                 
-                if (capsuleError) throw capsuleError;
-                
-                // Save fragments and reflections
-                for (let i = 0; i < fragments.length; i++) {
-                    const fragment = fragments[i];
+                if (capsuleId) {
+                    // Update existing capsule with final score and is_public
+                    const { error: updateError } = await supabase
+                        .from('capsules')
+                        .update({
+                            final_score_id: finalScoreId,
+                            is_public: capsuleData.isPublic
+                        })
+                        .eq('id', capsuleId);
                     
-                    // Save fragment
-                    const { data: fragmentData, error: fragmentError } = await supabase
-                        .from('fragments')
+                    if (updateError) {
+                        console.error('Error updating capsule:', updateError);
+                    }
+                    
+                    // Save reflection to existing fragment
+                    if (capsuleData.reflectionText && capsuleData.reflectionText.trim() && currentSession.fragmentId) {
+                        const { error: reflectionError } = await supabase
+                            .from('reflections')
+                            .insert({
+                                fragment_id: currentSession.fragmentId,
+                                text: capsuleData.reflectionText.trim(),
+                                transcription_source: 'user_typed'
+                            });
+                        
+                        if (reflectionError) {
+                            console.error('Error saving reflection:', reflectionError);
+                        }
+                    }
+                    
+                    showConnectionStatus('Capsule saved to database!', 'success');
+                    return { id: capsuleId };
+                    
+                } else {
+                    // Fallback: create new capsule if session wasn't started properly
+                    const { data: capsule, error: capsuleError } = await supabase
+                        .from('capsules')
                         .insert({
-                            capsule_id: capsule.id,
-                            cycle_number: fragment.cycleNumber,
-                            listen_source: fragment.listenSource,
-                            // TODO: Save actual audio files to storage and get IDs
-                            // listen_audio_id: fragment.listenAudioId,
-                            // sound_audio_id: fragment.soundAudioId
+                            user_id: currentUserId,
+                            initial_score_id: currentSession.initialScoreId,
+                            final_score_id: finalScoreId,
+                            is_public: capsuleData.isPublic,
+                            transport: inTelegram ? 'telegram_webapp' : 'web'
                         })
                         .select()
                         .single();
                     
-                    if (fragmentError) throw fragmentError;
+                    if (capsuleError) throw capsuleError;
                     
-                    // Save reflection if exists
-                    if (capsuleData.reflectionText && capsuleData.reflectionText.trim()) {
-                        const { error: reflectionError } = await supabase
-                            .from('reflections')
-                            .insert({
-                                fragment_id: fragmentData.id,
-                                text: capsuleData.reflectionText.trim(),
-                                transcription_source: 'user_typed'
-                                // TODO: Add keywords extraction
-                            });
-                        
-                        if (reflectionError) throw reflectionError;
-                    }
+                    showConnectionStatus('Capsule saved to database!', 'success');
+                    return { id: capsule.id };
                 }
-                
-                showConnectionStatus('Capsule saved to database!', 'success');
-                return { id: capsule.id, idNum: capsule.created_at };
                 
             } catch (error) {
                 console.error('Error saving to database:', error);
