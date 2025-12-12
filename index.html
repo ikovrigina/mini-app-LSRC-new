@@ -486,6 +486,8 @@
             }
             
             try {
+                console.log('saveCapsuleToDatabase called, currentSession:', currentSession);
+                
                 // First, save the final score if user created one
                 let finalScoreId = null;
                 if (capsuleData.userScoreTitle && capsuleData.userScoreTitle.trim()) {
@@ -502,12 +504,15 @@
                     
                     if (scoreError) throw scoreError;
                     finalScoreId = scoreData.id;
+                    console.log('Final score created:', finalScoreId);
                 }
                 
                 // Use existing capsule (created at session start) instead of creating new one
                 const capsuleId = currentSession.capsuleId;
+                console.log('Looking for existing capsuleId:', capsuleId);
                 
                 if (capsuleId) {
+                    console.log('Updating existing capsule:', capsuleId);
                     // Update existing capsule with final score and is_public
                     const { error: updateError } = await supabase
                         .from('capsules')
@@ -519,6 +524,7 @@
                     
                     if (updateError) {
                         console.error('Error updating capsule:', updateError);
+                        throw updateError;
                     }
                     
                     // Save reflection to existing fragment
@@ -536,27 +542,58 @@
                         }
                     }
                     
+                    console.log('Capsule updated successfully');
                     showConnectionStatus('Capsule saved to database!', 'success');
                     return { id: capsuleId };
                     
                 } else {
-                    // Fallback: create new capsule if session wasn't started properly
-                    const { data: capsule, error: capsuleError } = await supabase
+                    console.warn('No existing capsuleId found, this should not happen! Creating fallback capsule...');
+                    // Fallback: find the most recent capsule for this user with this initial_score
+                    const { data: existingCapsules, error: findError } = await supabase
                         .from('capsules')
-                        .insert({
-                            user_id: currentUserId,
-                            initial_score_id: currentSession.initialScoreId,
-                            final_score_id: finalScoreId,
-                            is_public: capsuleData.isPublic,
-                            transport: inTelegram ? 'telegram_webapp' : 'web'
-                        })
-                        .select()
-                        .single();
+                        .select('id')
+                        .eq('user_id', currentUserId)
+                        .eq('initial_score_id', currentSession.initialScoreId)
+                        .is('final_score_id', null)
+                        .order('created_at', { ascending: false })
+                        .limit(1);
                     
-                    if (capsuleError) throw capsuleError;
-                    
-                    showConnectionStatus('Capsule saved to database!', 'success');
-                    return { id: capsule.id };
+                    if (!findError && existingCapsules && existingCapsules.length > 0) {
+                        const foundCapsuleId = existingCapsules[0].id;
+                        console.log('Found existing capsule without final_score:', foundCapsuleId);
+                        
+                        const { error: updateError } = await supabase
+                            .from('capsules')
+                            .update({
+                                final_score_id: finalScoreId,
+                                is_public: capsuleData.isPublic
+                            })
+                            .eq('id', foundCapsuleId);
+                        
+                        if (updateError) throw updateError;
+                        
+                        showConnectionStatus('Capsule saved to database!', 'success');
+                        return { id: foundCapsuleId };
+                    } else {
+                        // Last resort: create new capsule
+                        console.warn('Creating new capsule as last resort');
+                        const { data: capsule, error: capsuleError } = await supabase
+                            .from('capsules')
+                            .insert({
+                                user_id: currentUserId,
+                                initial_score_id: currentSession.initialScoreId,
+                                final_score_id: finalScoreId,
+                                is_public: capsuleData.isPublic,
+                                transport: inTelegram ? 'telegram_webapp' : 'web'
+                            })
+                            .select()
+                            .single();
+                        
+                        if (capsuleError) throw capsuleError;
+                        
+                        showConnectionStatus('Capsule saved to database!', 'success');
+                        return { id: capsule.id };
+                    }
                 }
                 
             } catch (error) {
@@ -1068,11 +1105,27 @@
                 }
                 
                 let audioLookup = {};
-                const { data: audioFiles } = await supabase
-                    .from('audio_files')
-                    .select('id, file_url')
-                    .in('id', allIds);
-                if (audioFiles) audioFiles.forEach(a => audioLookup[a.id] = a.file_url);
+                if (allIds.length > 0) {
+                    const { data: audioFiles, error: audioError } = await supabase
+                        .from('audio_files')
+                        .select('id, file_url')
+                        .in('id', allIds);
+                    
+                    if (audioError) {
+                        console.error('Error loading audio files:', audioError);
+                        playerContainer.innerHTML = '<div class="text-sm text-red-500">Error loading audio: ' + audioError.message + '</div>';
+                        return;
+                    }
+                    
+                    if (audioFiles) {
+                        audioFiles.forEach(a => {
+                            if (a.file_url) {
+                                audioLookup[a.id] = a.file_url;
+                            }
+                        });
+                        console.log('Loaded audio files:', audioFiles.length, 'URLs:', audioLookup);
+                    }
+                }
                 
                 // Build player HTML with individual audio elements
                 let html = '<div class="text-sm font-bold mb-2">🎧 Audio Player</div>';
@@ -1081,27 +1134,48 @@
                 fragments.forEach((frag, i) => {
                     if (frag.listen_audio_id && audioLookup[frag.listen_audio_id]) {
                         audioCount++;
+                        const audioUrl = audioLookup[frag.listen_audio_id];
                         html += `
                             <div style="margin-bottom: 8px;">
-                                <div class="text-xs text-gray-500">Cycle ${i+1}: Listen</div>
-                                <audio controls style="width: 100%; height: 40px;" preload="metadata">
-                                    <source src="${audioLookup[frag.listen_audio_id]}" type="audio/webm">
+                                <div class="text-xs text-gray-500">Cycle ${frag.cycle_number}: Listen</div>
+                                <audio controls style="width: 100%; height: 40px;" preload="metadata" data-audio-id="${frag.listen_audio_id}">
+                                    <source src="${audioUrl}" type="audio/webm">
+                                    Your browser does not support the audio element.
                                 </audio>
                             </div>
                         `;
                     }
                     if (frag.sound_audio_id && audioLookup[frag.sound_audio_id]) {
                         audioCount++;
+                        const audioUrl = audioLookup[frag.sound_audio_id];
                         html += `
                             <div style="margin-bottom: 8px;">
-                                <div class="text-xs text-gray-500">Cycle ${i+1}: Sound</div>
-                                <audio controls style="width: 100%; height: 40px;" preload="metadata">
-                                    <source src="${audioLookup[frag.sound_audio_id]}" type="audio/webm">
+                                <div class="text-xs text-gray-500">Cycle ${frag.cycle_number}: Sound</div>
+                                <audio controls style="width: 100%; height: 40px;" preload="metadata" data-audio-id="${frag.sound_audio_id}">
+                                    <source src="${audioUrl}" type="audio/webm">
+                                    Your browser does not support the audio element.
                                 </audio>
                             </div>
                         `;
                     }
                 });
+                
+                // Add error handlers after HTML is inserted
+                setTimeout(() => {
+                    const audioElements = playerContainer.querySelectorAll('audio');
+                    audioElements.forEach(audio => {
+                        audio.addEventListener('error', (e) => {
+                            console.error('Audio playback error:', e, 'URL:', audio.querySelector('source')?.src);
+                            const errorDiv = document.createElement('div');
+                            errorDiv.className = 'text-xs text-red-500 mt-1';
+                            errorDiv.textContent = '⚠️ Audio failed to load';
+                            audio.parentElement.appendChild(errorDiv);
+                        });
+                        audio.addEventListener('loadedmetadata', () => {
+                            console.log('Audio loaded:', audio.querySelector('source')?.src);
+                        });
+                    });
+                }, 100);
                 
                 if (audioCount === 0) {
                     html = '<div class="text-sm text-red-500">No audio found</div>';
