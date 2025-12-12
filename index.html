@@ -1108,7 +1108,7 @@
                 if (allIds.length > 0) {
                     const { data: audioFiles, error: audioError } = await supabase
                         .from('audio_files')
-                        .select('id, file_url')
+                        .select('id, file_url, file_path')
                         .in('id', allIds);
                     
                     if (audioError) {
@@ -1117,13 +1117,25 @@
                         return;
                     }
                     
-                    if (audioFiles) {
+                    if (audioFiles && audioFiles.length > 0) {
+                        // Build lookup with both file_url and fallback to public URL
                         audioFiles.forEach(a => {
                             if (a.file_url) {
                                 audioLookup[a.id] = a.file_url;
+                            } else if (a.file_path) {
+                                // Fallback: construct public URL from file_path
+                                const { data: urlData } = supabase.storage
+                                    .from('audio')
+                                    .getPublicUrl(a.file_path);
+                                if (urlData && urlData.publicUrl) {
+                                    audioLookup[a.id] = urlData.publicUrl;
+                                }
                             }
                         });
-                        console.log('Loaded audio files:', audioFiles.length, 'URLs:', audioLookup);
+                        console.log('Loaded audio files:', audioFiles.length);
+                        console.log('Audio URLs:', audioLookup);
+                    } else {
+                        console.warn('No audio files found in database for IDs:', allIds);
                     }
                 }
                 
@@ -1135,54 +1147,100 @@
                     if (frag.listen_audio_id && audioLookup[frag.listen_audio_id]) {
                         audioCount++;
                         const audioUrl = audioLookup[frag.listen_audio_id];
+                        const safeUrl = audioUrl.replace(/"/g, '&quot;');
                         html += `
-                            <div style="margin-bottom: 8px;">
-                                <div class="text-xs text-gray-500">Cycle ${frag.cycle_number}: Listen</div>
-                                <audio controls style="width: 100%; height: 40px;" preload="metadata" data-audio-id="${frag.listen_audio_id}">
-                                    <source src="${audioUrl}" type="audio/webm">
+                            <div style="margin-bottom: 12px;">
+                                <div class="text-xs text-gray-500 mb-1">Cycle ${frag.cycle_number}: Listen</div>
+                                <audio controls style="width: 100%; height: 40px;" preload="auto" crossorigin="anonymous" data-audio-id="${frag.listen_audio_id}">
+                                    <source src="${safeUrl}" type="audio/webm">
                                     Your browser does not support the audio element.
                                 </audio>
+                                <div class="text-xs text-gray-400 mt-1" data-status-id="${frag.listen_audio_id}">Loading...</div>
                             </div>
                         `;
                     }
                     if (frag.sound_audio_id && audioLookup[frag.sound_audio_id]) {
                         audioCount++;
                         const audioUrl = audioLookup[frag.sound_audio_id];
+                        const safeUrl = audioUrl.replace(/"/g, '&quot;');
                         html += `
-                            <div style="margin-bottom: 8px;">
-                                <div class="text-xs text-gray-500">Cycle ${frag.cycle_number}: Sound</div>
-                                <audio controls style="width: 100%; height: 40px;" preload="metadata" data-audio-id="${frag.sound_audio_id}">
-                                    <source src="${audioUrl}" type="audio/webm">
+                            <div style="margin-bottom: 12px;">
+                                <div class="text-xs text-gray-500 mb-1">Cycle ${frag.cycle_number}: Sound</div>
+                                <audio controls style="width: 100%; height: 40px;" preload="auto" crossorigin="anonymous" data-audio-id="${frag.sound_audio_id}">
+                                    <source src="${safeUrl}" type="audio/webm">
                                     Your browser does not support the audio element.
                                 </audio>
+                                <div class="text-xs text-gray-400 mt-1" data-status-id="${frag.sound_audio_id}">Loading...</div>
                             </div>
                         `;
                     }
                 });
                 
-                // Add error handlers after HTML is inserted
-                setTimeout(() => {
-                    const audioElements = playerContainer.querySelectorAll('audio');
-                    audioElements.forEach(audio => {
-                        audio.addEventListener('error', (e) => {
-                            console.error('Audio playback error:', e, 'URL:', audio.querySelector('source')?.src);
-                            const errorDiv = document.createElement('div');
-                            errorDiv.className = 'text-xs text-red-500 mt-1';
-                            errorDiv.textContent = '⚠️ Audio failed to load';
-                            audio.parentElement.appendChild(errorDiv);
-                        });
-                        audio.addEventListener('loadedmetadata', () => {
-                            console.log('Audio loaded:', audio.querySelector('source')?.src);
-                        });
-                    });
-                }, 100);
-                
                 if (audioCount === 0) {
-                    html = '<div class="text-sm text-red-500">No audio found</div>';
+                    html = '<div class="text-sm text-red-500">No audio found. Audio IDs: ' + JSON.stringify(allIds) + '</div>';
                 }
                 
                 html += '<button class="btn btn-secondary btn-small mt-2" onclick="closePastPlayer()">Close</button>';
                 playerContainer.innerHTML = html;
+                
+                // Add event handlers AFTER HTML is inserted
+                setTimeout(() => {
+                    const audioElements = playerContainer.querySelectorAll('audio');
+                    console.log('Setting up audio handlers for', audioElements.length, 'elements');
+                    
+                    audioElements.forEach(audio => {
+                        const source = audio.querySelector('source');
+                        const audioUrl = source ? source.src : '';
+                        const statusDiv = playerContainer.querySelector(`[data-status-id="${audio.dataset.audioId}"]`);
+                        
+                        console.log('Setting up audio:', audioUrl);
+                        
+                        audio.addEventListener('loadstart', () => {
+                            console.log('Audio loadstart:', audioUrl);
+                            if (statusDiv) statusDiv.textContent = 'Loading...';
+                        });
+                        
+                        audio.addEventListener('loadedmetadata', () => {
+                            console.log('Audio loaded metadata:', audioUrl, 'Duration:', audio.duration);
+                            if (statusDiv) statusDiv.textContent = '✅ Ready (' + Math.round(audio.duration) + 's)';
+                        });
+                        
+                        audio.addEventListener('canplay', () => {
+                            console.log('Audio can play:', audioUrl);
+                            if (statusDiv && !statusDiv.textContent.includes('Ready')) {
+                                statusDiv.textContent = '✅ Ready';
+                            }
+                        });
+                        
+                        audio.addEventListener('error', (e) => {
+                            const error = audio.error;
+                            console.error('Audio playback error:', {
+                                code: error?.code,
+                                message: error?.message,
+                                url: audioUrl,
+                                error: error
+                            });
+                            
+                            if (statusDiv) {
+                                statusDiv.className = 'text-xs text-red-500 mt-1';
+                                let errorMsg = '❌ Error';
+                                if (error) {
+                                    switch(error.code) {
+                                        case 1: errorMsg = '❌ MEDIA_ERR_ABORTED'; break;
+                                        case 2: errorMsg = '❌ MEDIA_ERR_NETWORK'; break;
+                                        case 3: errorMsg = '❌ MEDIA_ERR_DECODE'; break;
+                                        case 4: errorMsg = '❌ MEDIA_ERR_SRC_NOT_SUPPORTED'; break;
+                                    }
+                                }
+                                statusDiv.textContent = errorMsg;
+                            }
+                        });
+                        
+                        audio.addEventListener('play', () => {
+                            console.log('Audio playing:', audioUrl);
+                        });
+                    });
+                }, 200);
                 
             } catch (error) {
                 console.error('Failed to load capsule:', error);
