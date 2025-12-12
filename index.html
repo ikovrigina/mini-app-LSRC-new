@@ -1118,22 +1118,35 @@
                     }
                     
                     if (audioFiles && audioFiles.length > 0) {
-                        // Build lookup with both file_url and fallback to public URL
+                        // Build lookup with corrected URLs
                         audioFiles.forEach(a => {
+                            let finalUrl = null;
+                            
                             if (a.file_url) {
-                                audioLookup[a.id] = a.file_url;
-                            } else if (a.file_path) {
-                                // Fallback: construct public URL from file_path
+                                // Fix double /audio/audio/ in URL if present
+                                finalUrl = a.file_url.replace('/audio/audio/', '/audio/');
+                            }
+                            
+                            // If no URL or URL looks wrong, construct from file_path
+                            if (!finalUrl && a.file_path) {
+                                // Extract just the filename from file_path (remove 'audio/' prefix)
+                                const fileName = a.file_path.replace(/^audio\//, '');
                                 const { data: urlData } = supabase.storage
                                     .from('audio')
-                                    .getPublicUrl(a.file_path);
+                                    .getPublicUrl(fileName);
                                 if (urlData && urlData.publicUrl) {
-                                    audioLookup[a.id] = urlData.publicUrl;
+                                    finalUrl = urlData.publicUrl.replace('/audio/audio/', '/audio/');
                                 }
                             }
+                            
+                            if (finalUrl) {
+                                audioLookup[a.id] = finalUrl;
+                                console.log('Audio URL for', a.id + ':', finalUrl);
+                            } else {
+                                console.warn('No valid URL for audio file:', a.id, a);
+                            }
                         });
-                        console.log('Loaded audio files:', audioFiles.length);
-                        console.log('Audio URLs:', audioLookup);
+                        console.log('Loaded audio files:', audioFiles.length, 'Valid URLs:', Object.keys(audioLookup).length);
                     } else {
                         console.warn('No audio files found in database for IDs:', allIds);
                     }
@@ -1405,12 +1418,15 @@
                     throw uploadError;
                 }
                 
-                // Получаем публичный URL
+                // Получаем публичный URL - используем только fileName без audio/ префикса
+                // потому что bucket уже называется 'audio'
                 const { data: urlData } = supabase.storage
                     .from('audio')
-                    .getPublicUrl(filePath);
+                    .getPublicUrl(fileName);
                 
-                const publicUrl = urlData.publicUrl;
+                // Если URL содержит двойной путь, исправляем
+                let publicUrl = urlData.publicUrl;
+                publicUrl = publicUrl.replace('/audio/audio/', '/audio/');
                 
                 // Сохраняем информацию о файле в базу данных
                 const { data: dbData, error: dbError } = await supabase
