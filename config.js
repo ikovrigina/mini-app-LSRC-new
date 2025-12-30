@@ -152,6 +152,7 @@ async function initializeConfig() {
 function validateConfig(config = CONFIG) {
     const errors = [];
     
+    // Проверяем только критически важные настройки для работы приложения
     if (!config.SUPABASE.URL || config.SUPABASE.URL.includes('your-project')) {
         errors.push('SUPABASE_URL не настроен');
     }
@@ -160,9 +161,8 @@ function validateConfig(config = CONFIG) {
         errors.push('SUPABASE_ANON_KEY не настроен');
     }
     
-    if (!config.DEPLOYMENT.VERCEL_URL || config.DEPLOYMENT.VERCEL_URL.includes('your-project')) {
-        errors.push('VERCEL_URL не настроен');
-    }
+    // VERCEL_URL не обязателен для работы приложения (только для деплоя)
+    // Убрали проверку VERCEL_URL, так как она не критична
     
     return {
         isValid: errors.length === 0,
