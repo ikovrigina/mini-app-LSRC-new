@@ -359,27 +359,48 @@
         // Initialize Supabase
         async function initializeSupabase() {
             try {
+                console.log('🔧 Initializing Supabase...');
+                
                 // Получаем конфигурацию из .env файла
                 appConfig = await initializeConfig();
+                console.log('✅ Config loaded:', {
+                    hasUrl: !!appConfig.SUPABASE.URL,
+                    urlPreview: appConfig.SUPABASE.URL ? appConfig.SUPABASE.URL.substring(0, 30) + '...' : 'missing',
+                    hasKey: !!appConfig.SUPABASE.ANON_KEY,
+                    keyPreview: appConfig.SUPABASE.ANON_KEY ? appConfig.SUPABASE.ANON_KEY.substring(0, 20) + '...' : 'missing'
+                });
+                
                 const validation = validateConfig(appConfig);
                 
                 if (!validation.isValid) {
-                    console.error('Configuration errors:', validation.errors);
+                    console.error('❌ Configuration errors:', validation.errors);
                     showConnectionStatus(`Configuration errors: ${validation.errors.join(', ')}`, 'error');
                     return false;
                 }
                 
+                console.log('🔗 Creating Supabase client...');
                 supabase = window.supabase.createClient(
                     appConfig.SUPABASE.URL, 
                     appConfig.SUPABASE.ANON_KEY
                 );
                 
+                // Тестируем подключение
+                console.log('🧪 Testing Supabase connection...');
+                const { data, error } = await supabase.from('scores').select('count').limit(1);
+                
+                if (error) {
+                    console.error('❌ Supabase connection test failed:', error);
+                    showConnectionStatus(`Database connection failed: ${error.message}`, 'error');
+                    return false;
+                }
+                
+                console.log('✅ Supabase connected successfully!');
                 showConnectionStatus('Connected to database', 'success');
                 supabaseConnected = true;
                 return true;
             } catch (error) {
-                console.error('Supabase initialization failed:', error);
-                showConnectionStatus('Database connection failed', 'error');
+                console.error('❌ Supabase initialization failed:', error);
+                showConnectionStatus(`Database connection failed: ${error.message}`, 'error');
                 return false;
             }
         }
