@@ -352,7 +352,8 @@
         // SUPABASE CONFIGURATION
         // ========================================
         
-        let supabase = null;
+        // Используем префикс для избежания конфликта с глобальной переменной из библиотеки
+        let supabaseClient = null;
         let supabaseConnected = false;
         let appConfig = null;
         
@@ -379,14 +380,14 @@
                 }
                 
                 console.log('🔗 Creating Supabase client...');
-                supabase = window.supabase.createClient(
+                supabaseClient = window.supabase.createClient(
                     appConfig.SUPABASE.URL, 
                     appConfig.SUPABASE.ANON_KEY
                 );
                 
                 // Тестируем подключение
                 console.log('🧪 Testing Supabase connection...');
-                const { data, error } = await supabase.from('scores').select('count').limit(1);
+                const { data, error } = await supabaseClient.from('scores').select('count').limit(1);
                 
                 if (error) {
                     console.error('❌ Supabase connection test failed:', error);
@@ -425,7 +426,7 @@
             if (!supabaseConnected) return;
             
             try {
-                await supabase.rpc('set_config', {
+                await supabaseClient.rpc('set_config', {
                     setting_name: 'app.current_user_id',
                     setting_value: userId,
                     is_local: false
@@ -461,7 +462,7 @@
                 }
                 
                 // Query scores from selected source(s)
-                const { data, error } = await supabase
+                const { data, error } = await supabaseClient
                     .from('scores')
                     .select('*')
                     .eq('is_public', true)
@@ -473,7 +474,7 @@
                 
                 // If no scores found in selected category, fallback to all scores
                 if (!data || data.length === 0) {
-                    const { data: fallbackData, error: fallbackError } = await supabase
+                    const { data: fallbackData, error: fallbackError } = await supabaseClient
                         .from('scores')
                         .select('*')
                         .eq('is_public', true)
@@ -512,7 +513,7 @@
                 // First, save the final score if user created one
                 let finalScoreId = null;
                 if (capsuleData.userScoreTitle && capsuleData.userScoreTitle.trim()) {
-                    const { data: scoreData, error: scoreError } = await supabase
+                    const { data: scoreData, error: scoreError } = await supabaseClient
                         .from('scores')
                         .insert({
                             text: capsuleData.userScoreTitle.trim(),
@@ -535,7 +536,7 @@
                 if (capsuleId) {
                     console.log('Updating existing capsule:', capsuleId);
                     // Update existing capsule with final score and is_public
-                    const { error: updateError } = await supabase
+                    const { error: updateError } = await supabaseClient
                         .from('capsules')
                         .update({
                             final_score_id: finalScoreId,
@@ -550,7 +551,7 @@
                     
                     // Save reflection to existing fragment
                     if (capsuleData.reflectionText && capsuleData.reflectionText.trim() && currentSession.fragmentId) {
-                        const { error: reflectionError } = await supabase
+                        const { error: reflectionError } = await supabaseClient
                             .from('reflections')
                             .insert({
                                 fragment_id: currentSession.fragmentId,
@@ -570,7 +571,7 @@
                 } else {
                     console.warn('No existing capsuleId found, this should not happen! Creating fallback capsule...');
                     // Fallback: find the most recent capsule for this user with this initial_score
-                    const { data: existingCapsules, error: findError } = await supabase
+                    const { data: existingCapsules, error: findError } = await supabaseClient
                         .from('capsules')
                         .select('id')
                         .eq('user_id', currentUserId)
@@ -583,7 +584,7 @@
                         const foundCapsuleId = existingCapsules[0].id;
                         console.log('Found existing capsule without final_score:', foundCapsuleId);
                         
-                        const { error: updateError } = await supabase
+                        const { error: updateError } = await supabaseClient
                             .from('capsules')
                             .update({
                                 final_score_id: finalScoreId,
@@ -598,7 +599,7 @@
                     } else {
                         // Last resort: create new capsule
                         console.warn('Creating new capsule as last resort');
-                        const { data: capsule, error: capsuleError } = await supabase
+                        const { data: capsule, error: capsuleError } = await supabaseClient
                             .from('capsules')
                             .insert({
                                 user_id: currentUserId,
@@ -1020,7 +1021,7 @@
             
             try {
                 // Get user's own capsules (including final_score_id)
-                const { data: capsules, error } = await supabase
+                const { data: capsules, error } = await supabaseClient
                     .from('capsules')
                     .select('id, created_at, is_public, user_id, initial_score_id, final_score_id')
                     .eq('user_id', currentUserId)
@@ -1036,7 +1037,7 @@
                 
                 // Get fragments to check which capsules have audio
                 const capsuleIds = capsules.map(c => c.id);
-                const { data: fragments } = await supabase
+                const { data: fragments } = await supabaseClient
                     .from('fragments')
                     .select('capsule_id, listen_audio_id, sound_audio_id')
                     .in('capsule_id', capsuleIds);
@@ -1057,7 +1058,7 @@
                 
                 let scoreLookup = {};
                 if (allScoreIds.length > 0) {
-                    const { data: scores } = await supabase
+                    const { data: scores } = await supabaseClient
                         .from('scores')
                         .select('id, text')
                         .in('id', allScoreIds);
@@ -1102,7 +1103,7 @@
                 playerContainer.style.display = 'block';
                 
                 // Get fragments for this capsule
-                const { data: fragments, error } = await supabase
+                const { data: fragments, error } = await supabaseClient
                     .from('fragments')
                     .select('id, cycle_number, listen_audio_id, sound_audio_id')
                     .eq('capsule_id', capsuleId)
@@ -1127,7 +1128,7 @@
                 
                 let audioLookup = {};
                 if (allIds.length > 0) {
-                    const { data: audioFiles, error: audioError } = await supabase
+                    const { data: audioFiles, error: audioError } = await supabaseClient
                         .from('audio_files')
                         .select('id, file_url, file_path')
                         .in('id', allIds);
@@ -1152,7 +1153,7 @@
                             if (!finalUrl && a.file_path) {
                                 // Extract just the filename from file_path (remove 'audio/' prefix)
                                 const fileName = a.file_path.replace(/^audio\//, '');
-                                const { data: urlData } = supabase.storage
+                                const { data: urlData } = supabaseClient.storage
                                     .from('audio')
                                     .getPublicUrl(fileName);
                                 if (urlData && urlData.publicUrl) {
@@ -1402,7 +1403,7 @@
         }
         
         async function saveAudioToSupabase(blob, type) {
-            if (!supabase) {
+            if (!supabaseClient) {
                 throw new Error('Supabase not initialized');
             }
             
@@ -1428,7 +1429,7 @@
             
             try {
                 // Загружаем файл в Supabase Storage
-                const { data: uploadData, error: uploadError } = await supabase.storage
+                const { data: uploadData, error: uploadError } = await supabaseClient.storage
                     .from('audio')
                     .upload(filePath, blob, {
                         contentType: 'audio/webm', // Принудительно устанавливаем WebM
@@ -1441,7 +1442,7 @@
                 
                 // Получаем публичный URL - используем только fileName без audio/ префикса
                 // потому что bucket уже называется 'audio'
-                const { data: urlData } = supabase.storage
+                const { data: urlData } = supabaseClient.storage
                     .from('audio')
                     .getPublicUrl(fileName);
                 
@@ -1450,7 +1451,7 @@
                 publicUrl = publicUrl.replace('/audio/audio/', '/audio/');
                 
                 // Сохраняем информацию о файле в базу данных
-                const { data: dbData, error: dbError } = await supabase
+                const { data: dbData, error: dbError } = await supabaseClient
                     .from('audio_files')
                     .insert({
                         file_name: fileName,
@@ -1586,13 +1587,13 @@
         
         // Функция для создания капсулы в БД
         async function createCapsule() {
-            if (!supabase || !currentSession.initialScoreId) {
+            if (!supabaseClient || !currentSession.initialScoreId) {
                 console.error('Cannot create capsule: missing Supabase or score');
                 return;
             }
             
             try {
-                const { data, error } = await supabase
+                const { data, error } = await supabaseClient
                     .from('capsules')
                     .insert({
                         initial_score_id: currentSession.initialScoreId,
@@ -1614,13 +1615,13 @@
         
         // Функция для создания фрагмента в БД
         async function createFragment() {
-            if (!supabase || !currentSession.capsuleId) {
+            if (!supabaseClient || !currentSession.capsuleId) {
                 console.error('Cannot create fragment: missing Supabase or capsule');
                 return;
             }
             
             try {
-                const { data, error } = await supabase
+                const { data, error } = await supabaseClient
                     .from('fragments')
                     .insert({
                         capsule_id: currentSession.capsuleId,
@@ -1642,7 +1643,7 @@
         
         // Функция для связывания аудио с фрагментом
         async function linkAudioToFragment(audioFileId, type) {
-            if (!supabase || !currentSession.fragmentId) {
+            if (!supabaseClient || !currentSession.fragmentId) {
                 console.error('Cannot link audio: missing Supabase or fragment');
                 return;
             }
@@ -1655,7 +1656,7 @@
                     updateData.sound_audio_id = audioFileId;
                 }
                 
-                const { data, error } = await supabase
+                const { data, error } = await supabaseClient
                     .from('fragments')
                     .update(updateData)
                     .eq('id', currentSession.fragmentId)
