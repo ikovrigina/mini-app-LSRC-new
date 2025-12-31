@@ -677,15 +677,11 @@
             console.log('🚀 App initializing...');
             initializeTelegram();
             
-            // Инициализируем Supabase с таймаутом, чтобы не блокировать UI
-            const initPromise = initializeSupabase();
-            const timeoutPromise = new Promise(resolve => setTimeout(() => {
-                console.warn('⚠️ Supabase initialization taking too long, continuing without it...');
-                showConnectionStatus('Database connection slow, using offline mode', 'error');
-                resolve(false);
-            }, 5000));
-            
-            await Promise.race([initPromise, timeoutPromise]);
+            // Инициализируем Supabase (без блокирующего таймаута, так как у нас уже есть таймаут внутри)
+            // Просто запускаем инициализацию, она сама обработает таймауты
+            initializeSupabase().catch(err => {
+                console.error('Supabase init error:', err);
+            });
             
             // Score НЕ загружаем при открытии - он появится только при нажатии на кнопку
             document.getElementById('scoreLine').textContent = '';
@@ -1434,8 +1430,9 @@
             
             // Проверяем поддерживаемые форматы
             const supportedTypes = ['audio/webm', 'audio/wav', 'audio/ogg'];
-            if (!supportedTypes.includes(blob.type)) {
-                console.warn(`Unsupported audio format: ${blob.type}. Converting to WebM...`);
+            // audio/webm;codecs=opus тоже поддерживается, но не в списке
+            if (!supportedTypes.includes(blob.type) && !blob.type.includes('webm')) {
+                console.log(`Converting audio format: ${blob.type} → WebM...`);
                 
                 // Конвертируем в WebM если возможно
                 try {
