@@ -385,13 +385,25 @@
                     appConfig.SUPABASE.ANON_KEY
                 );
                 
-                // Тестируем подключение
+                // Тестируем подключение с таймаутом
                 console.log('🧪 Testing Supabase connection...');
-                const { data, error } = await supabaseClient.from('scores').select('count').limit(1);
+                
+                // Создаем промис с таймаутом
+                const connectionTest = supabaseClient.from('scores').select('count').limit(1);
+                const timeoutPromise = new Promise((_, reject) => 
+                    setTimeout(() => reject(new Error('Connection timeout (10s)')), 10000)
+                );
+                
+                const { data, error } = await Promise.race([connectionTest, timeoutPromise]).catch(err => {
+                    console.error('❌ Connection test timeout or error:', err);
+                    return { data: null, error: err };
+                });
                 
                 if (error) {
                     console.error('❌ Supabase connection test failed:', error);
-                    showConnectionStatus(`Database connection failed: ${error.message}`, 'error');
+                    showConnectionStatus(`Database connection failed: ${error.message || 'Timeout or network error'}`, 'error');
+                    // Продолжаем работу в fallback режиме
+                    supabaseConnected = false;
                     return false;
                 }
                 
@@ -444,7 +456,8 @@
         // Priority: oliveros_original (75%) > user_created/community (25%)
         // Only Humans: all scores are written by real people
         async function getRandomScore() {
-            if (!supabaseConnected) {
+            if (!supabaseConnected || !supabaseClient) {
+                console.warn('⚠️ Supabase not connected, using fallback score');
                 return { text: "Walk so silently that the bottoms of your feet become ears." };
             }
             
@@ -661,11 +674,23 @@
         
         // Initialize
         document.addEventListener('DOMContentLoaded', async function() {
+            console.log('🚀 App initializing...');
             initializeTelegram();
-            await initializeSupabase();
+            
+            // Инициализируем Supabase с таймаутом, чтобы не блокировать UI
+            const initPromise = initializeSupabase();
+            const timeoutPromise = new Promise(resolve => setTimeout(() => {
+                console.warn('⚠️ Supabase initialization taking too long, continuing without it...');
+                showConnectionStatus('Database connection slow, using offline mode', 'error');
+                resolve(false);
+            }, 5000));
+            
+            await Promise.race([initPromise, timeoutPromise]);
+            
             // Score НЕ загружаем при открытии - он появится только при нажатии на кнопку
             document.getElementById('scoreLine').textContent = '';
             updateUI();
+            console.log('✅ App initialized');
         });
         
         function initializeTelegram() {
