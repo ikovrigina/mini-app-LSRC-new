@@ -520,9 +520,14 @@
                 console.warn('Supabase not connected, saving to localStorage');
                 return saveCapsuleToLocal(capsuleData);
             }
+
+            if (!currentSession.capsuleId) {
+                console.warn('No active capsule in session, saving to localStorage');
+                return saveCapsuleToLocal(capsuleData);
+            }
             
             try {
-                // First, save the final score if user created one
+                // Save the final score if user created one
                 let finalScoreId = null;
                 if (capsuleData.userScoreTitle && capsuleData.userScoreTitle.trim()) {
                     const { data: scoreData, error: scoreError } = await supabase
@@ -540,54 +545,31 @@
                     finalScoreId = scoreData.id;
                 }
                 
-                // Save capsule
+                // Update the existing capsule (already created at session start)
                 const { data: capsule, error: capsuleError } = await supabase
                     .from('capsules')
-                    .insert({
-                        user_id: currentUserId,
-                        initial_score_id: currentSession.initialScoreId,
+                    .update({
                         final_score_id: finalScoreId,
                         is_public: capsuleData.isPublic,
                         transport: inTelegram ? 'telegram_webapp' : 'web'
                     })
+                    .eq('id', currentSession.capsuleId)
                     .select()
                     .single();
                 
                 if (capsuleError) throw capsuleError;
                 
-                // Save fragments and reflections
-                for (let i = 0; i < fragments.length; i++) {
-                    const fragment = fragments[i];
-                    
-                    // Save fragment
-                    const { data: fragmentData, error: fragmentError } = await supabase
-                        .from('fragments')
+                // Save reflection to the existing fragment (audio already linked via linkAudioToFragment)
+                if (currentSession.currentFragmentId && capsuleData.reflectionText && capsuleData.reflectionText.trim()) {
+                    const { error: reflectionError } = await supabase
+                        .from('reflections')
                         .insert({
-                            capsule_id: capsule.id,
-                            cycle_number: fragment.cycleNumber,
-                            listen_source: fragment.listenSource,
-                            // TODO: Save actual audio files to storage and get IDs
-                            // listen_audio_id: fragment.listenAudioId,
-                            // sound_audio_id: fragment.soundAudioId
-                        })
-                        .select()
-                        .single();
+                            fragment_id: currentSession.currentFragmentId,
+                            text: capsuleData.reflectionText.trim(),
+                            transcription_source: 'user_typed'
+                        });
                     
-                    if (fragmentError) throw fragmentError;
-                    
-                    // Save reflection if exists
-                    if (capsuleData.reflectionText && capsuleData.reflectionText.trim()) {
-                        const { error: reflectionError } = await supabase
-                            .from('reflections')
-                            .insert({
-                                fragment_id: fragmentData.id,
-                                text: capsuleData.reflectionText.trim(),
-                                transcription_source: 'user_typed'
-                                // TODO: Add keywords extraction
-                            });
-                        
-                        if (reflectionError) throw reflectionError;
-                    }
+                    if (reflectionError) throw reflectionError;
                 }
                 
                 showConnectionStatus('Capsule saved to database!', 'success');
@@ -1404,6 +1386,14 @@
             fragments = [];
             currentListenUrl = null;
             currentSoundUrl = null;
+            currentSession = {
+                initialScore: null,
+                initialScoreId: null,
+                capsuleId: null,
+                currentFragmentId: null,
+                listenAudioId: null,
+                soundAudioId: null
+            };
             document.getElementById('reflectionText').value = '';
             document.getElementById('userScoreTitle').value = '';
             document.getElementById('isPublic').checked = true;
