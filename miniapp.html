@@ -1430,10 +1430,11 @@
                 }
                 
                 // Загружаем файл в Supabase Storage
+                const contentType = blob.type && blob.type !== '' ? blob.type.replace('video/', 'audio/') : 'audio/webm';
                 const { data: uploadData, error: uploadError } = await supabase.storage
                     .from('audio')
                     .upload(filePath, blob, {
-                        contentType: blob.type,
+                        contentType: contentType,
                         upsert: false
                     });
                 
