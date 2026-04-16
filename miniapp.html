@@ -1415,7 +1415,7 @@
             const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
             const userId = tg?.initDataUnsafe?.user?.id || 'anonymous';
             const fileName = `${type}_${userId}_${timestamp}.webm`;
-            const filePath = `audio/${fileName}`;
+            const filePath = fileName;
             
             try {
                 // Проверяем существование bucket и создаем если нужно
