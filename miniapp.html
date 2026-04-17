@@ -225,7 +225,6 @@
     <div class="container">
         <!-- Header -->
         <div class="header">
-            <div class="score-text">score</div>
             <div id="scoreLine" class="score-text">Loading...</div>
         </div>
         
@@ -249,10 +248,6 @@
         <div id="introPhase" class="card">
             <div class="text-center">
                 <button class="btn" onclick="startNewSession()">Listen</button>
-                <div class="text-sm mt-4">
-                    <button class="btn btn-secondary btn-small" onclick="enableMicrophone()">Enable microphone</button>
-                    <div id="micStatus" class="text-sm">(optional — enables live recording if allowed)</div>
-                </div>
             </div>
             <div id="testPanel" class="mt-4"></div>
         </div>
@@ -260,7 +255,6 @@
         <!-- Listen Choice Phase -->
         <div id="listenChoicePhase" class="card hidden">
             <div class="card-title">Listen</div>
-            <div class="text-sm text-center mb-4">Choose the source of listening</div>
             <div class="grid grid-2">
                 <button class="btn" onclick="chooseListenEnvironment()">Environment</button>
                 <button class="btn btn-secondary" onclick="chooseListenPast()">Past capsule</button>
@@ -273,7 +267,6 @@
         <!-- Past Capsules Phase -->
         <div id="pastCapsulesPhase" class="card hidden">
             <div class="card-title">Past Capsules</div>
-            <div class="text-sm text-center mb-4">Select a capsule to listen to</div>
             <div id="pastCapsulesList" class="text-center">
                 <div class="text-sm text-gray-500">Loading...</div>
             </div>
@@ -284,7 +277,7 @@
         
         <!-- Past Capsule Player Phase -->
         <div id="pastPlayerPhase" class="card hidden">
-            <div class="card-title">Listening to Past Capsule</div>
+            <div class="card-title">Past Capsule</div>
             <div id="pastCapsuleInfo" class="text-sm text-center mb-4"></div>
             <div class="fragment" style="margin-bottom: 16px;">
                 <div class="fragment-audio">
@@ -306,9 +299,9 @@
         
         <!-- Listening Environment Phase -->
         <div id="listeningPhase" class="card hidden">
-            <div class="card-title">Listening…</div>
+            <div class="card-title">Listen</div>
             <div class="text-center">
-                <div id="recordingStatus" class="text-sm mb-4">(sandbox recording)</div>
+                <div id="recordingStatus" class="text-sm mb-4"></div>
                 <div class="flex gap-3 justify-center">
                     <button id="recordBtn" class="btn" onclick="startRecording()">🎤 Record</button>
                     <button id="soundBtn" class="btn hidden" onclick="goSoundFromListen()">Sound</button>
@@ -323,10 +316,9 @@
         
         <!-- Sound Phase -->
         <div id="soundPhase" class="card hidden">
-            <div class="card-title">Sound back</div>
+            <div class="card-title">Sound</div>
             <div class="text-center">
-                <div class="text-sm mb-4">(your response to what you heard)</div>
-                <div id="soundRecordingStatus" class="text-sm mb-4">(ready to record)</div>
+                <div id="soundRecordingStatus" class="text-sm mb-4"></div>
                 <div class="flex gap-3 justify-center">
                     <button id="soundRecordBtn" class="btn" onclick="startSoundRecording()">🎤 Record</button>
                     <button id="soundContinueBtn" class="btn hidden" onclick="finishSound()">Continue</button>
@@ -354,9 +346,8 @@
         
         <!-- Create Phase -->
         <div id="createPhase" class="card hidden">
-            <div class="card-title">Write your own score</div>
-            <div class="text-sm text-center mb-4">(one line)</div>
-            <input id="userScoreTitle" class="input" placeholder="e.g., Breathe with the echo of your own steps.">
+            <div class="card-title">Create</div>
+            <input id="userScoreTitle" class="input" placeholder="Write your own score">
             <div class="flex items-center mt-4">
                 <input type="checkbox" id="isPublic" class="checkbox" checked>
                 <label for="isPublic" class="text-sm">Add to the collective pool (read-only)</label>
@@ -368,12 +359,12 @@
         
         <!-- Done Phase -->
         <div id="donePhase" class="card hidden">
-            <div class="card-title">✨ Quiet confirmation</div>
+            <div class="card-title">✨</div>
             <div class="text-center">
-                <p id="confirmMessage">Your score has been added to the Listening Archive.</p>
-                <p id="publicMessage" class="text-sm hidden">It is now part of the collective pool.</p>
+                <p id="confirmMessage" class="text-sm" style="color: #6b7280;">Saved</p>
+                <p id="publicMessage" class="text-sm hidden"></p>
                 <div class="flex gap-3 justify-center mt-4">
-                    <button class="btn btn-secondary btn-small" onclick="setPhase('listenChoice')">Start new loop</button>
+                    <button class="btn btn-secondary btn-small" onclick="setPhase('listenChoice')">New loop</button>
                     <button class="btn btn-small" onclick="newSession()">New session</button>
                 </div>
             </div>
@@ -844,7 +835,8 @@
                         created_at,
                         is_public,
                         user_id,
-                        initial_score_id
+                        initial_score_id,
+                        final_score_id
                     `)
                     .eq('user_id', currentUserId)
                     .order('created_at', { ascending: false })
@@ -886,8 +878,11 @@
                     if (!audioError) audioFiles = audioData;
                 }
                 
-                // Get scores for capsules
-                const scoreIds = [...new Set(capsules.map(c => c.initial_score_id).filter(Boolean))];
+                // Get scores for capsules (both initial and final)
+                const scoreIds = [...new Set([
+                    ...capsules.map(c => c.initial_score_id),
+                    ...capsules.map(c => c.final_score_id)
+                ].filter(Boolean))];
                 let scores = [];
                 if (scoreIds.length > 0) {
                     const { data: scoreData, error: scoreError } = await sbClient
@@ -925,17 +920,25 @@
                     const date = new Date(capsule.created_at).toLocaleDateString('en-US', {
                         month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'
                     });
-                    const scoreText = scoreLookup[capsule.initial_score_id] || 'Unknown score';
+                    const initialScore = scoreLookup[capsule.initial_score_id] || '';
+                    const finalScore = scoreLookup[capsule.final_score_id] || '';
                     const capsuleFragments = fragments.filter(f => f.capsule_id === capsule.id);
                     const fragmentsWithAudio = capsuleFragments.filter(f => 
                         (f.listen_audio_id && audioLookup[f.listen_audio_id]) ||
                         (f.sound_audio_id && audioLookup[f.sound_audio_id])
                     );
                     
+                    let cardContent = `<div class="text-sm" style="color: #6b7280;">${date}</div>`;
+                    if (initialScore) {
+                        cardContent += `<div style="font-style: italic; margin-top: 4px;">"${initialScore.substring(0, 60)}${initialScore.length > 60 ? '...' : ''}"</div>`;
+                    }
+                    if (finalScore) {
+                        cardContent += `<div style="margin-top: 4px; font-weight: 600;">→ "${finalScore.substring(0, 60)}${finalScore.length > 60 ? '...' : ''}"</div>`;
+                    }
+                    
                     html += `
                         <div class="fragment" style="margin-bottom: 12px; cursor: pointer;" onclick="selectPastCapsule('${capsule.id}')">
-                            <div class="fragment-title" style="font-style: italic;">"${scoreText.substring(0, 50)}${scoreText.length > 50 ? '...' : ''}"</div>
-                            <div class="text-sm" style="color: #6b7280;">${date} • ${fragmentsWithAudio.length} cycle${fragmentsWithAudio.length > 1 ? 's' : ''}</div>
+                            ${cardContent}
                         </div>
                     `;
                 });
@@ -958,21 +961,27 @@
                 // Get capsule
                 const { data: capsule, error } = await sbClient
                     .from('capsules')
-                    .select('id, created_at, initial_score_id')
+                    .select('id, created_at, initial_score_id, final_score_id')
                     .eq('id', capsuleId)
                     .single();
                 
                 if (error) throw error;
                 
-                // Get score text
-                let scoreText = 'Unknown score';
-                if (capsule.initial_score_id) {
-                    const { data: score } = await sbClient
+                // Get both initial and final score texts
+                let scoreText = '';
+                let finalScoreText = '';
+                const scoreIdsToFetch = [capsule.initial_score_id, capsule.final_score_id].filter(Boolean);
+                if (scoreIdsToFetch.length > 0) {
+                    const { data: scoresData } = await sbClient
                         .from('scores')
-                        .select('text')
-                        .eq('id', capsule.initial_score_id)
-                        .single();
-                    if (score) scoreText = score.text;
+                        .select('id, text')
+                        .in('id', scoreIdsToFetch);
+                    if (scoresData) {
+                        const initial = scoresData.find(s => s.id === capsule.initial_score_id);
+                        const final_ = scoresData.find(s => s.id === capsule.final_score_id);
+                        if (initial) scoreText = initial.text;
+                        if (final_) finalScoreText = final_.text;
+                    }
                 }
                 
                 // Get fragments with audio
@@ -1014,12 +1023,27 @@
                 const listenUrl = audioLookup[fragmentWithAudio.listen_audio_id] || null;
                 const soundUrl = audioLookup[fragmentWithAudio.sound_audio_id] || null;
                 
+                // Get reflection for the fragment
+                let reflectionText = '';
+                if (fragmentWithAudio) {
+                    const { data: reflections } = await sbClient
+                        .from('reflections')
+                        .select('text')
+                        .eq('fragment_id', fragmentWithAudio.id)
+                        .limit(1);
+                    if (reflections && reflections.length > 0) {
+                        reflectionText = reflections[0].text;
+                    }
+                }
+                
                 selectedPastCapsule = {
                     capsule,
                     fragment: fragmentWithAudio,
                     listenUrl,
                     soundUrl,
-                    scoreText
+                    scoreText,
+                    finalScoreText,
+                    reflectionText
                 };
                 
                 // Update UI
@@ -1027,10 +1051,17 @@
                     month: 'short', day: 'numeric', year: 'numeric'
                 });
                 
-                document.getElementById('pastCapsuleInfo').innerHTML = `
-                    <div style="font-style: italic; margin-bottom: 8px;">"${scoreText}"</div>
-                    <div style="color: #6b7280;">Recorded on ${date}</div>
-                `;
+                let infoHtml = `<div style="color: #6b7280; margin-bottom: 12px;">${date}</div>`;
+                if (scoreText) {
+                    infoHtml += `<div style="margin-bottom: 8px;"><span style="color: #9ca3af; font-size: 11px; text-transform: uppercase;">Source score</span><br><em>"${scoreText}"</em></div>`;
+                }
+                if (finalScoreText) {
+                    infoHtml += `<div style="margin-bottom: 8px;"><span style="color: #9ca3af; font-size: 11px; text-transform: uppercase;">Your score</span><br><strong><em>"${finalScoreText}"</em></strong></div>`;
+                }
+                if (reflectionText) {
+                    infoHtml += `<div style="margin-bottom: 8px;"><span style="color: #9ca3af; font-size: 11px; text-transform: uppercase;">Reflection</span><br><span style="color: #6b7280;">${reflectionText}</span></div>`;
+                }
+                document.getElementById('pastCapsuleInfo').innerHTML = infoHtml;
                 
                 // Set audio sources
                 const listenAudio = document.getElementById('pastListenAudio');
