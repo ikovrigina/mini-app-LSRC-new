@@ -620,11 +620,13 @@
         
         // Initialize
         document.addEventListener('DOMContentLoaded', async function() {
+            console.log('🚀 LSRC VERSION: 2026-04-17-v3');
             initializeTelegram();
+            console.log('👤 currentUserId:', currentUserId);
             await initializeSupabase();
+            console.log('🔌 supabaseConnected:', supabaseConnected);
             await loadInitialScore();
             updateUI();
-            runDiagnostics();
         });
         
         function initializeTelegram() {
@@ -823,10 +825,12 @@
         
         // Load past capsules from database
         async function loadPastCapsules() {
+            console.log('📂 loadPastCapsules called, userId:', currentUserId, 'supabaseConnected:', supabaseConnected);
             const listEl = document.getElementById('pastCapsulesList');
             listEl.innerHTML = '<div class="text-sm text-gray-500">Loading...</div>';
             
             if (!supabaseConnected) {
+                console.log('❌ Database not connected');
                 listEl.innerHTML = '<div class="text-sm text-gray-500">Database not connected</div>';
                 return;
             }
