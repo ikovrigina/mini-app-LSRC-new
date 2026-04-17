@@ -1029,19 +1029,37 @@
                 const listenAudio = document.getElementById('pastListenAudio');
                 const soundAudio = document.getElementById('pastSoundAudio');
                 
-                if (listenUrl) {
-                    listenAudio.src = listenUrl;
-                    listenAudio.style.display = 'block';
-                } else {
-                    listenAudio.style.display = 'none';
+                function setAudioSource(audioEl, url) {
+                    if (!url) {
+                        audioEl.style.display = 'none';
+                        return;
+                    }
+                    audioEl.innerHTML = '';
+                    // Detect format from URL, fall back to trying both
+                    const isMp4 = url.endsWith('.mp4') || url.endsWith('.m4a');
+                    const isWebm = url.endsWith('.webm');
+                    if (isMp4) {
+                        audioEl.src = url;
+                    } else if (isWebm) {
+                        // Try webm, with mp4 fallback (helps if file is actually mp4 named .webm on iOS)
+                        const srcWebm = document.createElement('source');
+                        srcWebm.src = url;
+                        srcWebm.type = 'audio/webm';
+                        const srcMp4 = document.createElement('source');
+                        srcMp4.src = url;
+                        srcMp4.type = 'audio/mp4';
+                        audioEl.appendChild(srcWebm);
+                        audioEl.appendChild(srcMp4);
+                    } else {
+                        audioEl.src = url;
+                    }
+                    audioEl.load();
+                    audioEl.style.display = 'block';
+                    audioEl.onerror = () => console.warn('Audio playback error for:', url);
                 }
                 
-                if (soundUrl) {
-                    soundAudio.src = soundUrl;
-                    soundAudio.style.display = 'block';
-                } else {
-                    soundAudio.style.display = 'none';
-                }
+                setAudioSource(listenAudio, listenUrl);
+                setAudioSource(soundAudio, soundUrl);
                 
                 setPhase('pastPlayer');
                 
@@ -1414,7 +1432,10 @@
             // Генерируем уникальное имя файла
             const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
             const userId = tg?.initDataUnsafe?.user?.id || 'anonymous';
-            const fileName = `${type}_${userId}_${timestamp}.webm`;
+            // Use actual format extension based on what the browser recorded
+            const contentType = blob.type && blob.type !== '' ? blob.type.replace('video/', 'audio/') : 'audio/webm';
+            const ext = contentType.includes('mp4') || contentType.includes('m4a') ? 'mp4' : 'webm';
+            const fileName = `${type}_${userId}_${timestamp}.${ext}`;
             const filePath = `audio/${fileName}`;
             
             try {
@@ -1430,7 +1451,6 @@
                 }
                 
                 // Загружаем файл в Supabase Storage
-                const contentType = blob.type && blob.type !== '' ? blob.type.replace('video/', 'audio/') : 'audio/webm';
                 const { data: uploadData, error: uploadError } = await sbClient.storage
                     .from('audio')
                     .upload(filePath, blob, {
