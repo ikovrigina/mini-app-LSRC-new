@@ -388,7 +388,7 @@
         // SUPABASE CONFIGURATION
         // ========================================
         
-        let supabase = null;
+        let sbClient = null;
         let supabaseConnected = false;
         let appConfig = null;
         
@@ -405,7 +405,7 @@
                     return false;
                 }
                 
-                supabase = window.supabase.createClient(
+                sbClient = window.supabase.createClient(
                     appConfig.SUPABASE.URL, 
                     appConfig.SUPABASE.ANON_KEY
                 );
@@ -440,7 +440,7 @@
             if (!supabaseConnected) return;
             
             try {
-                await supabase.rpc('set_config', {
+                await sbClient.rpc('set_config', {
                     setting_name: 'app.current_user_id',
                     setting_value: userId,
                     is_local: false
@@ -476,7 +476,7 @@
                 }
                 
                 // Query scores from selected source(s)
-                const { data, error } = await supabase
+                const { data, error } = await sbClient
                     .from('scores')
                     .select('*')
                     .eq('is_public', true)
@@ -488,7 +488,7 @@
                 
                 // If no scores found in selected category, fallback to all scores
                 if (!data || data.length === 0) {
-                    const { data: fallbackData, error: fallbackError } = await supabase
+                    const { data: fallbackData, error: fallbackError } = await sbClient
                         .from('scores')
                         .select('*')
                         .eq('is_public', true)
@@ -530,7 +530,7 @@
                 // Save the final score if user created one
                 let finalScoreId = null;
                 if (capsuleData.userScoreTitle && capsuleData.userScoreTitle.trim()) {
-                    const { data: scoreData, error: scoreError } = await supabase
+                    const { data: scoreData, error: scoreError } = await sbClient
                         .from('scores')
                         .insert({
                             text: capsuleData.userScoreTitle.trim(),
@@ -546,7 +546,7 @@
                 }
                 
                 // Update the existing capsule (already created at session start)
-                const { data: capsule, error: capsuleError } = await supabase
+                const { data: capsule, error: capsuleError } = await sbClient
                     .from('capsules')
                     .update({
                         final_score_id: finalScoreId,
@@ -561,7 +561,7 @@
                 
                 // Save reflection to the existing fragment (audio already linked via linkAudioToFragment)
                 if (currentSession.currentFragmentId && capsuleData.reflectionText && capsuleData.reflectionText.trim()) {
-                    const { error: reflectionError } = await supabase
+                    const { error: reflectionError } = await sbClient
                         .from('reflections')
                         .insert({
                             fragment_id: currentSession.currentFragmentId,
@@ -668,7 +668,7 @@
         }
         
         async function createCapsule() {
-            if (!supabase || !currentSession.initialScoreId) {
+            if (!sbClient || !currentSession.initialScoreId) {
                 console.error('Cannot create capsule: missing Supabase or score');
                 return;
             }
@@ -676,7 +676,7 @@
             try {
                 console.log('🔧 Creating capsule for score:', currentSession.initialScoreId);
                 
-                const { data, error } = await supabase
+                const { data, error } = await sbClient
                     .from('capsules')
                     .insert({
                         user_id: currentUserId || 'anonymous',
@@ -700,7 +700,7 @@
         }
         
         async function createFragment(listenSource = 'environment') {
-            if (!supabase || !currentSession.capsuleId) {
+            if (!sbClient || !currentSession.capsuleId) {
                 console.error('Cannot create fragment: missing capsule');
                 return;
             }
@@ -708,7 +708,7 @@
             try {
                 console.log('🔧 Creating fragment for capsule:', currentSession.capsuleId, 'source:', listenSource);
                 
-                const { data, error } = await supabase
+                const { data, error } = await sbClient
                     .from('fragments')
                     .insert({
                         capsule_id: currentSession.capsuleId,
@@ -830,7 +830,7 @@
             
             try {
                 // Get user's own capsules
-                const { data: capsules, error } = await supabase
+                const { data: capsules, error } = await sbClient
                     .from('capsules')
                     .select(`
                         id,
@@ -852,7 +852,7 @@
                 
                 // Get fragments with audio for these capsules
                 const capsuleIds = capsules.map(c => c.id);
-                const { data: fragments, error: fragError } = await supabase
+                const { data: fragments, error: fragError } = await sbClient
                     .from('fragments')
                     .select(`
                         id,
@@ -872,7 +872,7 @@
                 
                 let audioFiles = [];
                 if (allAudioIds.length > 0) {
-                    const { data: audioData, error: audioError } = await supabase
+                    const { data: audioData, error: audioError } = await sbClient
                         .from('audio_files')
                         .select('id, file_url')
                         .in('id', allAudioIds);
@@ -883,7 +883,7 @@
                 const scoreIds = [...new Set(capsules.map(c => c.initial_score_id).filter(Boolean))];
                 let scores = [];
                 if (scoreIds.length > 0) {
-                    const { data: scoreData, error: scoreError } = await supabase
+                    const { data: scoreData, error: scoreError } = await sbClient
                         .from('scores')
                         .select('id, text')
                         .in('id', scoreIds);
@@ -949,7 +949,7 @@
             
             try {
                 // Get capsule
-                const { data: capsule, error } = await supabase
+                const { data: capsule, error } = await sbClient
                     .from('capsules')
                     .select('id, created_at, initial_score_id')
                     .eq('id', capsuleId)
@@ -960,7 +960,7 @@
                 // Get score text
                 let scoreText = 'Unknown score';
                 if (capsule.initial_score_id) {
-                    const { data: score } = await supabase
+                    const { data: score } = await sbClient
                         .from('scores')
                         .select('text')
                         .eq('id', capsule.initial_score_id)
@@ -969,7 +969,7 @@
                 }
                 
                 // Get fragments with audio
-                const { data: fragments, error: fragError } = await supabase
+                const { data: fragments, error: fragError } = await sbClient
                     .from('fragments')
                     .select('id, cycle_number, listen_audio_id, sound_audio_id')
                     .eq('capsule_id', capsuleId)
@@ -984,7 +984,7 @@
                 
                 let audioLookup = {};
                 if (allIds.length > 0) {
-                    const { data: audioFiles } = await supabase
+                    const { data: audioFiles } = await sbClient
                         .from('audio_files')
                         .select('id, file_url')
                         .in('id', allIds);
@@ -1404,12 +1404,12 @@
         async function saveAudioToSupabase(blob, type) {
             console.log('🔧 saveAudioToSupabase called with:', { blobSize: blob.size, type });
             
-            if (!supabase) {
+            if (!sbClient) {
                 throw new Error('Supabase not initialized');
             }
             
-            console.log('🔧 Supabase client exists:', !!supabase);
-            console.log('🔧 Supabase storage:', !!supabase.storage);
+            console.log('🔧 Supabase client exists:', !!sbClient);
+            console.log('🔧 Supabase storage:', !!sbClient.storage);
             
             // Генерируем уникальное имя файла
             const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
@@ -1419,7 +1419,7 @@
             
             try {
                 // Проверяем существование bucket и создаем если нужно
-                const { data: buckets, error: bucketsError } = await supabase.storage.listBuckets();
+                const { data: buckets, error: bucketsError } = await sbClient.storage.listBuckets();
                 console.log('🔧 Available buckets:', buckets);
                 console.log('🔧 Buckets error:', bucketsError);
                 
@@ -1431,7 +1431,7 @@
                 
                 // Загружаем файл в Supabase Storage
                 const contentType = blob.type && blob.type !== '' ? blob.type.replace('video/', 'audio/') : 'audio/webm';
-                const { data: uploadData, error: uploadError } = await supabase.storage
+                const { data: uploadData, error: uploadError } = await sbClient.storage
                     .from('audio')
                     .upload(filePath, blob, {
                         contentType: contentType,
@@ -1457,7 +1457,7 @@
                 
                 console.log('🔧 Inserting audio file data:', audioFileData);
                 
-                const { data: dbData, error: dbError } = await supabase
+                const { data: dbData, error: dbError } = await sbClient
                     .from('audio_files')
                     .insert(audioFileData)
                     .select()
@@ -1496,7 +1496,7 @@
         }
         
         async function linkAudioToFragment(audioFileId, type) {
-            if (!supabase || !currentSession.currentFragmentId) {
+            if (!sbClient || !currentSession.currentFragmentId) {
                 console.error('Cannot link audio: missing fragment');
                 return;
             }
@@ -1513,7 +1513,7 @@
                     currentSession.soundAudioId = audioFileId;
                 }
                 
-                const { data, error } = await supabase
+                const { data, error } = await sbClient
                     .from('fragments')
                     .update(updateData)
                     .eq('id', currentSession.currentFragmentId)
