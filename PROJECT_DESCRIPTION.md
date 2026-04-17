@@ -107,3 +107,5 @@ Potential extensions of the research include:
 **LSRC** is both a tool for practice and a research instrument, exploring how embodied listening practices can generate new forms of instruction, documentation, and understanding.
 
 
+
+

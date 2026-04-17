@@ -27,7 +27,7 @@ logger = logging.getLogger(__name__)
 BOT_TOKEN = os.getenv('TELEGRAM_BOT_TOKEN')
 SUPABASE_URL = os.getenv('SUPABASE_URL')
 SUPABASE_KEY = os.getenv('SUPABASE_ANON_KEY')
-WEBAPP_URL = os.getenv('WEBAPP_URL', 'https://listen-sound-reflect-create.vercel.app/')
+WEBAPP_URL = os.getenv('WEBAPP_URL', 'https://mini-app-lsrc-new.vercel.app/miniapp.html?v=2')
 OPENAI_API_KEY = os.getenv('OPENAI_API_KEY')
 OPENAI_ASSISTANT_ID = os.getenv('OPENAI_ASSISTANT_ID')
 
