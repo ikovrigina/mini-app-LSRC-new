@@ -1442,12 +1442,8 @@
                     throw uploadError;
                 }
                 
-                // Получаем публичный URL
-                const { data: urlData } = supabase.storage
-                    .from('audio')
-                    .getPublicUrl(filePath);
-                
-                const publicUrl = urlData.publicUrl;
+                // Строим URL вручную чтобы избежать нормализации SDK
+                const publicUrl = `${appConfig.SUPABASE.URL}/storage/v1/object/public/audio/${filePath}`;
                 
                 // Сохраняем информацию о файле в базу данных
                 const audioFileData = {
