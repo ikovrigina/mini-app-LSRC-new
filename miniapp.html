@@ -2,1708 +2,1471 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
-    <title>listen.sound.reflect.create MINIAPP</title>
+    <title>LSRC — Only Humans</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="config.js"></script>
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-        
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: white;
-            color: #3f3f46;
+            background: #fafafa;
+            color: #27272a;
             line-height: 1.6;
+            min-height: 100vh;
+            overflow-x: hidden;
         }
-        
-        .container {
-            max-width: 600px;
+
+        .app {
+            max-width: 480px;
             margin: 0 auto;
-            padding: 20px;
-        }
-        
-        .header {
-            text-align: center;
-            margin-bottom: 30px;
-        }
-        
-        .score-text {
-            font-size: 18px;
-            font-style: italic;
-            color: #6b7280;
-            margin-bottom: 10px;
-        }
-        
-        .card {
-            background: white;
-            border: 1px solid #e5e7eb;
-            border-radius: 16px;
-            padding: 24px;
-            margin-bottom: 20px;
-            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-        }
-        
-        .card-title {
-            font-size: 18px;
-            font-weight: 600;
-            text-align: center;
-            margin-bottom: 16px;
-        }
-        
-        .btn {
-            background: #3f3f46;
-            color: white;
-            border: none;
-            padding: 12px 24px;
-            border-radius: 16px;
-            font-size: 16px;
-            cursor: pointer;
-            transition: background 0.2s;
-            width: 100%;
-            margin-bottom: 12px;
-        }
-        
-        .btn:hover {
-            background: #52525b;
-        }
-        
-        .btn-secondary {
-            background: #f3f4f6;
-            color: #3f3f46;
-        }
-        
-        .btn-secondary:hover {
-            background: #e5e7eb;
-        }
-        
-        .btn-danger {
-            background: #ef4444;
-        }
-        
-        .btn-danger:hover {
-            background: #dc2626;
-        }
-        
-        .btn-small {
-            padding: 8px 16px;
-            font-size: 14px;
-            width: auto;
-        }
-        
-        .text-center {
-            text-align: center;
-        }
-        
-        .text-sm {
-            font-size: 14px;
-            color: #6b7280;
-        }
-        
-        .mb-4 {
-            margin-bottom: 16px;
-        }
-        
-        .mt-4 {
-            margin-top: 16px;
-        }
-        
-        .flex {
+            padding: 24px 20px;
+            min-height: 100vh;
             display: flex;
+            flex-direction: column;
         }
-        
-        .gap-3 {
-            gap: 12px;
-        }
-        
-        .justify-center {
+
+        /* Flow screen: single screen that transforms */
+        .flow {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
             justify-content: center;
+            align-items: center;
+            text-align: center;
+            transition: opacity 0.6s ease;
         }
-        
-        .grid {
-            display: grid;
-            gap: 12px;
+
+        .flow.fading { opacity: 0; }
+
+        .score-display {
+            font-size: 20px;
+            font-style: italic;
+            color: #52525b;
+            line-height: 1.5;
+            margin-bottom: 16px;
+            padding: 0 12px;
+            max-width: 360px;
         }
-        
-        .grid-2 {
-            grid-template-columns: 1fr 1fr;
-        }
-        
-        .audio-player {
-            width: 100%;
-            margin-top: 8px;
-        }
-        
-        .textarea {
-            width: 100%;
-            min-height: 120px;
-            padding: 12px;
-            border: 1px solid #e5e7eb;
-            border-radius: 16px;
-            font-family: inherit;
-            resize: vertical;
-        }
-        
-        .input {
-            width: 100%;
-            padding: 12px;
-            border: 1px solid #e5e7eb;
-            border-radius: 16px;
-            font-family: inherit;
-        }
-        
-        .checkbox {
-            margin-right: 8px;
-        }
-        
-        .alert {
-            background: #fef3c7;
-            border: 1px solid #f59e0b;
-            border-radius: 12px;
-            padding: 12px;
-            margin-bottom: 20px;
-            font-size: 14px;
-            color: #92400e;
-        }
-        
-        .alert-success {
-            background: #dcfce7;
-            border: 1px solid #16a34a;
-            color: #166534;
-        }
-        
-        .hidden {
-            display: none;
-        }
-        
-        .session-summary {
-            margin-top: 40px;
-            padding-top: 20px;
-            border-top: 1px solid #e5e7eb;
-        }
-        
-        .fragment {
-            background: #f9fafb;
-            border: 1px solid #e5e7eb;
-            border-radius: 12px;
-            padding: 16px;
-            margin-bottom: 12px;
-        }
-        
-        .fragment-title {
-            font-size: 14px;
-            font-weight: 500;
+
+        .score-meta {
+            font-size: 13px;
+            color: #a1a1aa;
             margin-bottom: 8px;
         }
-        
-        .fragment-audio {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 12px;
-        }
-        
-        .audio-label {
+
+        .listen-count {
             font-size: 12px;
-            color: #6b7280;
+            color: #d4d4d8;
+            margin-bottom: 32px;
+        }
+
+        .phase-label {
+            font-size: 14px;
+            letter-spacing: 0.1em;
+            text-transform: lowercase;
+            color: #a1a1aa;
+            margin-bottom: 24px;
+            transition: opacity 0.4s ease;
+        }
+
+        .btn-listen {
+            background: #18181b;
+            color: white;
+            border: none;
+            padding: 16px 48px;
+            border-radius: 50px;
+            font-size: 16px;
+            letter-spacing: 0.05em;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .btn-listen:hover { background: #3f3f46; }
+        .btn-listen:active { transform: scale(0.97); }
+
+        .btn-soft {
+            background: transparent;
+            color: #71717a;
+            border: 1px solid #e4e4e7;
+            padding: 10px 24px;
+            border-radius: 50px;
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin: 6px;
+        }
+
+        .btn-soft:hover { background: #f4f4f5; border-color: #a1a1aa; }
+
+        /* Recording pulse */
+        .recording-indicator {
+            width: 12px;
+            height: 12px;
+            background: #ef4444;
+            border-radius: 50%;
+            display: inline-block;
+            margin-right: 8px;
+            animation: pulse 1.5s ease-in-out infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.5; transform: scale(1.3); }
+        }
+
+        /* Soft timer ring */
+        .timer-ring {
+            width: 120px;
+            height: 120px;
+            margin: 24px auto;
+            position: relative;
+        }
+
+        .timer-ring svg {
+            transform: rotate(-90deg);
+            width: 120px;
+            height: 120px;
+        }
+
+        .timer-ring .bg { stroke: #e4e4e7; }
+        .timer-ring .progress {
+            stroke: #18181b;
+            transition: stroke-dashoffset 0.5s linear;
+        }
+
+        .timer-seconds {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 24px;
+            font-weight: 300;
+            color: #52525b;
+        }
+
+        /* Audio playback */
+        .audio-playback {
+            width: 100%;
+            max-width: 300px;
+            margin: 16px auto;
+        }
+
+        .audio-playback audio {
+            width: 100%;
+            height: 40px;
+        }
+
+        /* Text inputs */
+        .flow-input {
+            width: 100%;
+            max-width: 320px;
+            padding: 14px 16px;
+            border: 1px solid #e4e4e7;
+            border-radius: 16px;
+            font-family: inherit;
+            font-size: 16px;
+            text-align: center;
+            background: white;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        .flow-input:focus { border-color: #a1a1aa; }
+
+        .flow-textarea {
+            width: 100%;
+            max-width: 320px;
+            padding: 14px 16px;
+            border: 1px solid #e4e4e7;
+            border-radius: 16px;
+            font-family: inherit;
+            font-size: 15px;
+            text-align: center;
+            background: white;
+            outline: none;
+            resize: none;
+            min-height: 80px;
+            transition: border-color 0.2s;
+        }
+
+        .flow-textarea:focus { border-color: #a1a1aa; }
+
+        /* Done screen transformation display */
+        .transformation {
+            max-width: 320px;
+            margin: 0 auto;
+            text-align: left;
+        }
+
+        .transformation .arrow {
+            text-align: center;
+            font-size: 20px;
+            color: #d4d4d8;
+            margin: 12px 0;
+        }
+
+        .transformation .from-score,
+        .transformation .to-score {
+            font-style: italic;
+            padding: 12px 16px;
+            border-radius: 12px;
+        }
+
+        .transformation .from-score {
+            background: #f4f4f5;
+            color: #71717a;
+            font-size: 14px;
+        }
+
+        .transformation .to-score {
+            background: #18181b;
+            color: white;
+            font-size: 16px;
+            font-weight: 500;
+        }
+
+        /* Archive */
+        .archive-section {
+            margin-top: auto;
+            padding-top: 32px;
+            border-top: 1px solid #f4f4f5;
+        }
+
+        .archive-toggle {
+            font-size: 13px;
+            color: #a1a1aa;
+            cursor: pointer;
+            text-align: center;
+            padding: 12px;
+            letter-spacing: 0.05em;
+        }
+
+        .archive-toggle:hover { color: #52525b; }
+
+        .archive-list { margin-top: 12px; }
+
+        .archive-item {
+            background: white;
+            border: 1px solid #f4f4f5;
+            border-radius: 12px;
+            padding: 14px 16px;
+            margin-bottom: 8px;
+            cursor: pointer;
+            transition: border-color 0.2s;
+        }
+
+        .archive-item:hover { border-color: #d4d4d8; }
+
+        .archive-date {
+            font-size: 12px;
+            color: #a1a1aa;
+        }
+
+        .archive-score {
+            font-style: italic;
+            font-size: 14px;
+            color: #52525b;
+            margin-top: 4px;
+        }
+
+        .archive-your-score {
+            font-size: 14px;
+            font-weight: 600;
+            color: #27272a;
+            margin-top: 4px;
+        }
+
+        /* Archive detail view */
+        .archive-detail {
+            text-align: left;
+        }
+
+        .archive-detail-label {
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: #a1a1aa;
             margin-bottom: 4px;
+            margin-top: 16px;
         }
-        
-        .loading {
-            opacity: 0.6;
-            pointer-events: none;
+
+        .archive-detail-label:first-child { margin-top: 0; }
+
+        .archive-detail audio {
+            width: 100%;
+            height: 36px;
+            margin-top: 4px;
         }
+
+        /* Status messages */
+        .status-bar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            background: #dcfce7;
+            color: #166534;
+            text-align: center;
+            padding: 8px;
+            font-size: 13px;
+            transform: translateY(-100%);
+            transition: transform 0.3s ease;
+            z-index: 100;
+        }
+
+        .status-bar.visible { transform: translateY(0); }
+        .status-bar.error { background: #fef2f2; color: #dc2626; }
+
+        .hidden { display: none !important; }
+
+        /* Upload fallback (hidden by default, shown only on mic failure) */
+        .upload-fallback {
+            margin-top: 16px;
+        }
+
+        .upload-fallback input[type="file"] {
+            font-size: 13px;
+            color: #71717a;
+        }
+
+        /* Post-session explanation */
+        .explain-toggle {
+            font-size: 13px;
+            color: #a1a1aa;
+            cursor: pointer;
+            margin-top: 16px;
+            transition: color 0.2s;
+        }
+
+        .explain-toggle:hover { color: #52525b; }
+
+        .explain-content {
+            text-align: left;
+            max-width: 340px;
+            margin: 16px auto 0;
+        }
+
+        .explain-item {
+            margin-bottom: 14px;
+        }
+
+        .explain-phase {
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: #a1a1aa;
+            margin-bottom: 2px;
+        }
+
+        .explain-text {
+            font-size: 13px;
+            color: #52525b;
+            line-height: 1.5;
+        }
+
+        /* About page */
+        .about-content {
+            text-align: left;
+            max-width: 360px;
+            width: 100%;
+        }
+
+        .about-content h2 {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 12px;
+            color: #27272a;
+        }
+
+        .about-content p {
+            font-size: 14px;
+            color: #52525b;
+            margin-bottom: 12px;
+            line-height: 1.6;
+        }
+
+        .about-content em {
+            color: #71717a;
+        }
+
+        .about-section {
+            margin-bottom: 24px;
+        }
+
+        .about-phase-list {
+            list-style: none;
+            padding: 0;
+        }
+
+        .about-phase-list li {
+            padding: 8px 0;
+            border-bottom: 1px solid #f4f4f5;
+            font-size: 14px;
+            color: #52525b;
+        }
+
+        .about-phase-list li:last-child { border-bottom: none; }
+
+        .about-phase-name {
+            font-weight: 600;
+            color: #27272a;
+            display: inline-block;
+            width: 70px;
+        }
+
+        /* Chat UI */
+        .chat-container {
+            width: 100%;
+            max-width: 380px;
+            display: flex;
+            flex-direction: column;
+            flex: 1;
+            max-height: 70vh;
+        }
+
+        .chat-messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 8px 0;
+            min-height: 200px;
+        }
+
+        .chat-msg {
+            margin-bottom: 12px;
+            padding: 10px 14px;
+            border-radius: 14px;
+            font-size: 14px;
+            line-height: 1.5;
+            max-width: 85%;
+        }
+
+        .chat-msg.guide {
+            background: #f4f4f5;
+            color: #3f3f46;
+            align-self: flex-start;
+            border-bottom-left-radius: 4px;
+        }
+
+        .chat-msg.user {
+            background: #18181b;
+            color: white;
+            margin-left: auto;
+            border-bottom-right-radius: 4px;
+        }
+
+        .chat-msg.typing {
+            color: #a1a1aa;
+            font-style: italic;
+        }
+
+        .chat-input-row {
+            display: flex;
+            gap: 8px;
+            margin-top: 8px;
+        }
+
+        .chat-input {
+            flex: 1;
+            padding: 10px 14px;
+            border: 1px solid #e4e4e7;
+            border-radius: 20px;
+            font-family: inherit;
+            font-size: 14px;
+            outline: none;
+            background: white;
+        }
+
+        .chat-input:focus { border-color: #a1a1aa; }
+
+        .chat-send {
+            background: #18181b;
+            color: white;
+            border: none;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+
+        .chat-send:hover { background: #3f3f46; }
+
+        /* About link in bottom bar */
+        .bottom-bar {
+            display: flex;
+            justify-content: center;
+            gap: 24px;
+        }
+
+        .bottom-link {
+            font-size: 13px;
+            color: #a1a1aa;
+            cursor: pointer;
+            padding: 12px;
+            letter-spacing: 0.05em;
+        }
+
+        .bottom-link:hover { color: #52525b; }
     </style>
 </head>
 <body>
-    <div class="container">
-        <!-- Header -->
-        <div class="header">
-            <div id="scoreLine" class="score-text">Loading...</div>
+    <div class="app">
+        <!-- Status bar for notifications -->
+        <div id="statusBar" class="status-bar"></div>
+
+        <!-- Main flow area — single screen that transforms -->
+        <div id="flowScreen" class="flow">
+            <!-- Content injected by JS based on current phase -->
         </div>
-        
-        <!-- Supabase Connection Status -->
-        <div id="connectionStatus" class="alert hidden">
-            <strong>Database:</strong> <span id="statusText">Connecting...</span>
-        </div>
-        
-        <!-- Telegram Info -->
-        <div id="telegramInfo" class="text-sm text-center hidden">
-            Running in browser preview. In Telegram, this page opens inside the bot as a Mini App.
-        </div>
-        
-        <!-- Sandbox Banner -->
-        <div id="sandboxBanner" class="alert hidden">
-            <strong>Sandbox mode (no live mic).</strong><br>
-            Use simulated recordings or upload audio files to continue the flow.
-        </div>
-        
-        <!-- Intro Phase -->
-        <div id="introPhase" class="card">
-            <div class="text-center">
-                <button class="btn" onclick="startNewSession()">Listen</button>
-            </div>
-            <div id="testPanel" class="mt-4"></div>
-        </div>
-        
-        <!-- Listen Choice Phase -->
-        <div id="listenChoicePhase" class="card hidden">
-            <div class="card-title">Listen</div>
-            <div class="grid grid-2">
-                <button class="btn" onclick="chooseListenEnvironment()">Environment</button>
-                <button class="btn btn-secondary" onclick="chooseListenPast()">Past capsule</button>
-            </div>
-            <div id="reflectButton" class="text-center mt-4 hidden">
-                <button class="btn btn-secondary btn-small" onclick="setPhase('reflect')">Reflect</button>
-            </div>
-        </div>
-        
-        <!-- Past Capsules Phase -->
-        <div id="pastCapsulesPhase" class="card hidden">
-            <div class="card-title">Past Capsules</div>
-            <div id="pastCapsulesList" class="text-center">
-                <div class="text-sm text-gray-500">Loading...</div>
-            </div>
-            <div class="text-center mt-4">
-                <button class="btn btn-secondary btn-small" onclick="setPhase('listenChoice')">← Back</button>
-            </div>
-        </div>
-        
-        <!-- Past Capsule Player Phase -->
-        <div id="pastPlayerPhase" class="card hidden">
-            <div class="card-title">Past Capsule</div>
-            <div id="pastCapsuleInfo" class="text-sm text-center mb-4"></div>
-            <div class="fragment" style="margin-bottom: 16px;">
-                <div class="fragment-audio">
-                    <div>
-                        <div class="audio-label">Listen</div>
-                        <audio id="pastListenAudio" class="audio-player" controls></audio>
-                    </div>
-                    <div>
-                        <div class="audio-label">Sound</div>
-                        <audio id="pastSoundAudio" class="audio-player" controls></audio>
-                    </div>
+
+        <!-- Bottom section — archive + about -->
+        <div class="archive-section" id="archiveSection">
+            <div class="bottom-bar">
+                <div class="bottom-link" onclick="toggleArchive()">
+                    <span id="archiveToggleText">sound diary</span>
                 </div>
+                <div class="bottom-link" onclick="goToPhase('about')">about</div>
             </div>
-            <div class="text-center">
-                <button class="btn" onclick="usePastCapsuleAsSource()">Use as listening source</button>
-                <button class="btn btn-secondary btn-small mt-4" onclick="setPhase('pastCapsules')">← Choose another</button>
-            </div>
-        </div>
-        
-        <!-- Listening Environment Phase -->
-        <div id="listeningPhase" class="card hidden">
-            <div class="card-title">Listen</div>
-            <div class="text-center">
-                <div id="recordingStatus" class="text-sm mb-4"></div>
-                <div class="flex gap-3 justify-center">
-                    <button id="recordBtn" class="btn" onclick="startRecording()">🎤 Record</button>
-                    <button id="soundBtn" class="btn hidden" onclick="goSoundFromListen()">Sound</button>
-                </div>
-                <audio id="listenAudio" class="audio-player hidden" controls></audio>
-                <div id="uploadControls" class="mt-4 hidden">
-                    <input type="file" accept="audio/*" onchange="uploadAudio(this, 'listen')" style="margin-bottom: 12px;">
-                    <button class="btn btn-secondary btn-small" onclick="createSilentAudio('listen')">Use silent sample</button>
-                </div>
-            </div>
-        </div>
-        
-        <!-- Sound Phase -->
-        <div id="soundPhase" class="card hidden">
-            <div class="card-title">Sound</div>
-            <div class="text-center">
-                <div id="soundRecordingStatus" class="text-sm mb-4"></div>
-                <div class="flex gap-3 justify-center">
-                    <button id="soundRecordBtn" class="btn" onclick="startSoundRecording()">🎤 Record</button>
-                    <button id="soundContinueBtn" class="btn hidden" onclick="finishSound()">Continue</button>
-                </div>
-                <audio id="soundAudio" class="audio-player hidden" controls></audio>
-                <div id="soundUploadControls" class="mt-4 hidden">
-                    <input type="file" accept="audio/*" onchange="uploadAudio(this, 'sound')" style="margin-bottom: 12px;">
-                    <button class="btn btn-secondary btn-small" onclick="createSilentAudio('sound')">Use silent sample</button>
-                </div>
-                <div id="soundNavigation" class="mt-6 flex gap-3 justify-center hidden">
-                    <button class="btn btn-secondary btn-small" onclick="setPhase('listenChoice')">Listen again</button>
-                    <button class="btn btn-small" onclick="setPhase('reflect')">Reflect</button>
-                </div>
-            </div>
-        </div>
-        
-        <!-- Reflect Phase -->
-        <div id="reflectPhase" class="card hidden">
-            <div class="card-title">Reflect</div>
-            <textarea id="reflectionText" class="textarea" placeholder="Write what you noticed, felt, or became aware of."></textarea>
-            <div class="text-center mt-4">
-                <button class="btn" onclick="setPhase('create')">Create</button>
-            </div>
-        </div>
-        
-        <!-- Create Phase -->
-        <div id="createPhase" class="card hidden">
-            <div class="card-title">Create</div>
-            <input id="userScoreTitle" class="input" placeholder="Write your own score">
-            <div class="flex items-center mt-4">
-                <input type="checkbox" id="isPublic" class="checkbox" checked>
-                <label for="isPublic" class="text-sm">Add to the collective pool (read-only)</label>
-            </div>
-            <div class="text-center mt-4">
-                <button id="saveBtn" class="btn" onclick="saveCapsule()">Save capsule</button>
-            </div>
-        </div>
-        
-        <!-- Done Phase -->
-        <div id="donePhase" class="card hidden">
-            <div class="card-title">✨</div>
-            <div class="text-center">
-                <p id="confirmMessage" class="text-sm" style="color: #6b7280;">Saved</p>
-                <p id="publicMessage" class="text-sm hidden"></p>
-                <div class="flex gap-3 justify-center mt-4">
-                    <button class="btn btn-secondary btn-small" onclick="setPhase('listenChoice')">New loop</button>
-                    <button class="btn btn-small" onclick="newSession()">New session</button>
-                </div>
-            </div>
-        </div>
-        
-        <!-- Session Summary -->
-        <div id="sessionSummary" class="session-summary hidden">
-            <div class="text-sm uppercase tracking-wide" style="color: #9ca3af; margin-bottom: 8px;">Current session</div>
-            <div id="fragmentsList"></div>
+            <div id="archiveList" class="archive-list hidden"></div>
         </div>
     </div>
 
     <script>
-        // ========================================
-        // SUPABASE CONFIGURATION
-        // ========================================
-        
-        let sbClient = null;
-        let supabaseConnected = false;
-        let appConfig = null;
-        
-        // Initialize Supabase
-        async function initializeSupabase() {
+    // =============================================
+    // LSRC v2 — Only Humans
+    // Single-screen flow: listen → sound → reflect → create
+    // =============================================
+
+    let sbClient = null;
+    let supabaseConnected = false;
+    let appConfig = null;
+
+    let tg = null;
+    let inTelegram = false;
+    let currentUserId = null;
+
+    let currentPhase = 'home';
+    let currentScore = null;
+    let currentSession = {
+        capsuleId: null,
+        fragmentId: null,
+        initialScoreId: null,
+        listenBlobUrl: null,
+        soundBlobUrl: null,
+        listenBlob: null,
+        soundBlob: null,
+        reflectionText: '',
+        userScore: '',
+    };
+
+    let mediaRecorder = null;
+    let chunks = [];
+    let isRecording = false;
+    let softTimerId = null;
+    let timerInterval = null;
+    let timerElapsed = 0;
+    const SOFT_TIMER_SECONDS = 20;
+
+    let archiveOpen = false;
+
+    // =============================================
+    // INIT
+    // =============================================
+
+    document.addEventListener('DOMContentLoaded', async () => {
+        console.log('🚀 LSRC v2 — 2026-04-17');
+        initTelegram();
+        await initSupabase();
+        await loadScore();
+        render();
+    });
+
+    function initTelegram() {
+        if (window.Telegram && window.Telegram.WebApp) {
+            tg = window.Telegram.WebApp;
+            inTelegram = true;
+            currentUserId = tg.initDataUnsafe?.user?.id?.toString() || 'anonymous';
             try {
-                // Получаем конфигурацию из .env файла
-                appConfig = await initializeConfig();
-                const validation = validateConfig(appConfig);
-                
-                if (!validation.isValid) {
-                    console.error('Configuration errors:', validation.errors);
-                    showConnectionStatus(`Configuration errors: ${validation.errors.join(', ')}`, 'error');
-                    return false;
-                }
-                
-                sbClient = window.supabase.createClient(
-                    appConfig.SUPABASE.URL, 
-                    appConfig.SUPABASE.ANON_KEY
-                );
-                
-                showConnectionStatus('Connected to database', 'success');
-                supabaseConnected = true;
-                return true;
-            } catch (error) {
-                console.error('Supabase initialization failed:', error);
-                showConnectionStatus('Database connection failed', 'error');
-                return false;
+                tg.ready();
+                tg.expand();
+                if (tg.setHeaderColor) tg.setHeaderColor('#fafafa');
+            } catch (e) {
+                console.warn('Telegram init failed:', e);
             }
+        } else {
+            currentUserId = 'web_user_' + Math.random().toString(36).slice(2, 10);
         }
-        
-        function showConnectionStatus(message, type) {
-            const statusEl = document.getElementById('connectionStatus');
-            const textEl = document.getElementById('statusText');
-            
-            textEl.textContent = message;
-            statusEl.className = type === 'success' ? 'alert alert-success' : 'alert';
-            statusEl.classList.remove('hidden');
-            
-            if (type === 'success') {
-                setTimeout(() => {
-                    statusEl.classList.add('hidden');
-                }, 3000);
+    }
+
+    async function initSupabase() {
+        try {
+            appConfig = await initializeConfig();
+            const v = validateConfig(appConfig);
+            if (!v.isValid) {
+                console.error('Config errors:', v.errors);
+                return;
             }
+            sbClient = window.supabase.createClient(appConfig.SUPABASE.URL, appConfig.SUPABASE.ANON_KEY);
+            supabaseConnected = true;
+            showStatus('Connected', 'success');
+        } catch (e) {
+            console.error('Supabase init failed:', e);
         }
-        
-        // Set user context for RLS
-        async function setUserContext(userId) {
-            if (!supabaseConnected) return;
-            
-            try {
-                await sbClient.rpc('set_config', {
-                    setting_name: 'app.current_user_id',
-                    setting_value: userId,
-                    is_local: false
-                });
-            } catch (error) {
-                console.warn('Could not set user context:', error);
-            }
+    }
+
+    function showStatus(msg, type = 'success') {
+        const bar = document.getElementById('statusBar');
+        bar.textContent = msg;
+        bar.className = 'status-bar visible' + (type === 'error' ? ' error' : '');
+        setTimeout(() => { bar.className = 'status-bar'; }, 2500);
+    }
+
+    // =============================================
+    // SCORE LOADING
+    // =============================================
+
+    async function loadScore() {
+        if (!supabaseConnected) {
+            currentScore = { text: "Walk so silently that the bottoms of your feet become ears.", id: null, created_at: null, usage_count: 0 };
+            return;
         }
-        
-        // ========================================
-        // DATABASE FUNCTIONS
-        // ========================================
-        
-        // Get random score from database with weighted selection
-        // Priority: oliveros_original (75%) > user_created/community (25%)
-        // Only Humans: all scores are written by real people
-        async function getRandomScore() {
-            if (!supabaseConnected) {
-                return { text: "Walk so silently that the bottoms of your feet become ears." };
-            }
-            
-            try {
-                // Weighted random selection
-                const roll = Math.random() * 100;
-                let sourceFilter;
-                
-                if (roll < 75) {
-                    // 75% chance: Pauline Oliveros originals
-                    sourceFilter = ['oliveros_original'];
-                } else {
-                    // 25% chance: User created and community scores
-                    sourceFilter = ['user_created', 'community'];
-                }
-                
-                // Query scores from selected source(s)
-                const { data, error } = await sbClient
+        try {
+            const roll = Math.random() * 100;
+            const sourceFilter = roll < 75 ? ['oliveros_original'] : ['user_created', 'community'];
+            let { data, error } = await sbClient
+                .from('scores')
+                .select('*')
+                .eq('is_public', true)
+                .in('source', sourceFilter)
+                .order('usage_count', { ascending: true })
+                .limit(10);
+
+            if (error || !data || data.length === 0) {
+                const fallback = await sbClient
                     .from('scores')
                     .select('*')
                     .eq('is_public', true)
-                    .in('source', sourceFilter)
-                    .order('usage_count', { ascending: true })
                     .limit(10);
-                
-                if (error) throw error;
-                
-                // If no scores found in selected category, fallback to all scores
-                if (!data || data.length === 0) {
-                    const { data: fallbackData, error: fallbackError } = await sbClient
-                        .from('scores')
-                        .select('*')
-                        .eq('is_public', true)
-                        .order('usage_count', { ascending: true })
-                        .limit(10);
-                    
-                    if (fallbackError) throw fallbackError;
-                    
-                    if (fallbackData && fallbackData.length > 0) {
-                        const randomIndex = Math.floor(Math.random() * fallbackData.length);
-                        return fallbackData[randomIndex];
-                    }
-                    return { text: "Walk so silently that the bottoms of your feet become ears." };
-                }
-                
-                // Random selection from filtered results
-                const randomIndex = Math.floor(Math.random() * data.length);
-                return data[randomIndex];
-                
-            } catch (error) {
-                console.error('Error fetching score:', error);
-                return { text: "Walk so silently that the bottoms of your feet become ears." };
-            }
-        }
-        
-        // Save capsule to database
-        async function saveCapsuleToDatabase(capsuleData) {
-            if (!supabaseConnected) {
-                console.warn('Supabase not connected, saving to localStorage');
-                return saveCapsuleToLocal(capsuleData);
+                data = fallback.data;
             }
 
-            if (!currentSession.capsuleId) {
-                console.warn('No active capsule in session, saving to localStorage');
-                return saveCapsuleToLocal(capsuleData);
-            }
-            
-            try {
-                // Save the final score if user created one
-                let finalScoreId = null;
-                if (capsuleData.userScoreTitle && capsuleData.userScoreTitle.trim()) {
-                    const { data: scoreData, error: scoreError } = await sbClient
-                        .from('scores')
-                        .insert({
-                            text: capsuleData.userScoreTitle.trim(),
-                            author_user_id: currentUserId,
-                            source: 'user_created',
-                            is_public: capsuleData.isPublic
-                        })
-                        .select()
-                        .single();
-                    
-                    if (scoreError) throw scoreError;
-                    finalScoreId = scoreData.id;
-                }
-                
-                // Update the existing capsule (already created at session start)
-                const { data: capsule, error: capsuleError } = await sbClient
-                    .from('capsules')
-                    .update({
-                        final_score_id: finalScoreId,
-                        is_public: capsuleData.isPublic,
-                        transport: inTelegram ? 'telegram_webapp' : 'web'
-                    })
-                    .eq('id', currentSession.capsuleId)
-                    .select()
-                    .single();
-                
-                if (capsuleError) throw capsuleError;
-                
-                // Save reflection to the existing fragment (audio already linked via linkAudioToFragment)
-                if (currentSession.currentFragmentId && capsuleData.reflectionText && capsuleData.reflectionText.trim()) {
-                    const { error: reflectionError } = await sbClient
-                        .from('reflections')
-                        .insert({
-                            fragment_id: currentSession.currentFragmentId,
-                            text: capsuleData.reflectionText.trim(),
-                            transcription_source: 'user_typed'
-                        });
-                    
-                    if (reflectionError) throw reflectionError;
-                }
-                
-                showConnectionStatus('Capsule saved to database!', 'success');
-                return { id: capsule.id, idNum: capsule.created_at };
-                
-            } catch (error) {
-                console.error('Error saving to database:', error);
-                showConnectionStatus('Failed to save to database, using local storage', 'error');
-                return saveCapsuleToLocal(capsuleData);
-            }
-        }
-        
-        // ========================================
-        // EXISTING CODE (updated to use database)
-        // ========================================
-        
-        // Global state
-        let currentPhase = 'intro';
-        let fragments = [];
-        let currentListenUrl = null;
-        let currentSoundUrl = null;
-        let isRecording = false;
-        let mediaRecorder = null;
-        let chunks = [];
-        let pastCapsules = JSON.parse(localStorage.getItem('lsrc_capsules_v4') || '[]');
-        let selectedPastId = null;
-        let tg = null;
-        let inTelegram = false;
-        let sandboxMode = false; // ИСПРАВЛЕНО: было true
-        let micReady = false;
-        
-        // Отладочная информация
-        console.log('🔧 AUDIO DEBUG: sandboxMode =', sandboxMode);
-        console.log('🔧 AUDIO DEBUG: MediaDevices supported =', !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia));
-        console.log('🔧 BUILD TIMESTAMP:', new Date().toISOString());
-        let currentUserId = null;
-        let currentSession = {
-            initialScore: null,
-            initialScoreId: null,
-            capsuleId: null,
-            currentFragmentId: null,
-            listenAudioId: null,
-            soundAudioId: null
-        };
-        
-        // Initialize
-        document.addEventListener('DOMContentLoaded', async function() {
-            console.log('🚀 LSRC VERSION: 2026-04-17-v3');
-            initializeTelegram();
-            console.log('👤 currentUserId:', currentUserId);
-            await initializeSupabase();
-            console.log('🔌 supabaseConnected:', supabaseConnected);
-            await loadInitialScore();
-            updateUI();
-        });
-        
-        function initializeTelegram() {
-            if (window.Telegram && window.Telegram.WebApp) {
-                tg = window.Telegram.WebApp;
-                inTelegram = true;
-                currentUserId = tg.initDataUnsafe?.user?.id?.toString() || 'anonymous';
-                document.getElementById('telegramInfo').classList.add('hidden');
-                
-                try {
-                    tg.ready();
-                    tg.expand();
-                    if (tg.setHeaderColor) {
-                        tg.setHeaderColor('secondary_bg_color');
-                    }
-                    setUserContext(currentUserId);
-                } catch (e) {
-                    console.warn('Telegram WebApp initialization failed:', e);
+            if (data && data.length > 0) {
+                currentScore = data[Math.floor(Math.random() * data.length)];
+                // Increment usage count
+                if (currentScore.id) {
+                    sbClient.from('scores').update({ usage_count: (currentScore.usage_count || 0) + 1 }).eq('id', currentScore.id).then(() => {});
                 }
             } else {
-                document.getElementById('telegramInfo').classList.remove('hidden');
-                currentUserId = 'web_user_' + Math.random().toString(36).slice(2, 10);
-                setUserContext(currentUserId);
+                currentScore = { text: "Walk so silently that the bottoms of your feet become ears.", id: null };
             }
+        } catch (e) {
+            console.error('Score load error:', e);
+            currentScore = { text: "Walk so silently that the bottoms of your feet become ears.", id: null };
         }
-        
-        async function loadInitialScore() {
-            const score = await getRandomScore();
-            currentSession.initialScore = score;
-            currentSession.initialScoreId = score.id;
-            document.getElementById('scoreLine').textContent = score.text;
+    }
+
+    // =============================================
+    // RENDERING — single screen that transforms
+    // =============================================
+
+    function render() {
+        const flow = document.getElementById('flowScreen');
+        flow.classList.add('fading');
+        setTimeout(() => {
+            flow.innerHTML = renderPhase();
+            flow.classList.remove('fading');
+        }, 300);
+    }
+
+    function renderPhase() {
+        switch (currentPhase) {
+            case 'home': return renderHome();
+            case 'listen': return renderListen();
+            case 'playback': return renderPlayback();
+            case 'sound': return renderSound();
+            case 'reflect': return renderReflect();
+            case 'create': return renderCreate();
+            case 'done': return renderDone();
+            case 'about': return renderAbout();
+            case 'guide': return renderGuide();
+            case 'archiveDetail': return renderArchiveDetail();
+            default: return renderHome();
         }
-        
-        async function startNewSession() {
-            console.log('🔧 Starting new session...');
-            
-            // Load a new random score
-            await loadInitialScore();
-            
-            // Create new capsule in database
-            await createCapsule();
-            
-            setPhase('listenChoice');
-        }
-        
-        async function createCapsule() {
-            if (!sbClient || !currentSession.initialScoreId) {
-                console.error('Cannot create capsule: missing Supabase or score');
-                return;
-            }
-            
-            try {
-                console.log('🔧 Creating capsule for score:', currentSession.initialScoreId);
-                
-                const { data, error } = await sbClient
-                    .from('capsules')
-                    .insert({
-                        user_id: currentUserId || 'anonymous',
-                        initial_score_id: currentSession.initialScoreId,
-                        is_public: true
-                    })
-                    .select()
-                    .single();
-                
-                if (error) {
-                    console.error('Failed to create capsule:', error);
-                    return;
-                }
-                
-                currentSession.capsuleId = data.id;
-                console.log('🔧 Capsule created:', data.id);
-                
-            } catch (error) {
-                console.error('Error creating capsule:', error);
-            }
-        }
-        
-        async function createFragment(listenSource = 'environment') {
-            if (!sbClient || !currentSession.capsuleId) {
-                console.error('Cannot create fragment: missing capsule');
-                return;
-            }
-            
-            try {
-                console.log('🔧 Creating fragment for capsule:', currentSession.capsuleId, 'source:', listenSource);
-                
-                const { data, error } = await sbClient
-                    .from('fragments')
-                    .insert({
-                        capsule_id: currentSession.capsuleId,
-                        cycle_number: fragments.length + 1,
-                        listen_source: listenSource
-                    })
-                    .select()
-                    .single();
-                
-                if (error) {
-                    console.error('Failed to create fragment:', error);
-                    return;
-                }
-                
-                currentSession.currentFragmentId = data.id;
-                console.log('🔧 Fragment created:', data.id);
-                
-            } catch (error) {
-                console.error('Error creating fragment:', error);
-            }
-        }
-        
-        function runDiagnostics() {
-            const isSecure = window.isSecureContext || location.protocol === 'https:';
-            const hasMediaDevices = !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia);
-            
-            if (!isSecure || !hasMediaDevices) {
-                sandboxMode = true;
-                document.getElementById('sandboxBanner').classList.remove('hidden');
-            }
-            
-            // Update test panel
-            const testPanel = document.getElementById('testPanel');
-            testPanel.innerHTML = `
-                <div class="text-sm" style="color: #6b7280; margin-bottom: 8px;">Diagnostics / Tests</div>
-                <div class="grid">
-                    <div class="px-2 py-1 rounded" style="background: ${isSecure ? '#dcfce7' : '#fef2f2'}; color: ${isSecure ? '#166534' : '#dc2626'};">
-                        ${isSecure ? 'PASS' : 'FAIL'} — Secure Context
-                    </div>
-                    <div class="px-2 py-1 rounded" style="background: ${hasMediaDevices ? '#dcfce7' : '#fef2f2'}; color: ${hasMediaDevices ? '#166534' : '#dc2626'};">
-                        ${hasMediaDevices ? 'PASS' : 'FAIL'} — MediaDevices Present
-                    </div>
-                    <div class="px-2 py-1 rounded" style="background: ${supabaseConnected ? '#dcfce7' : '#fef2f2'}; color: ${supabaseConnected ? '#166534' : '#dc2626'};">
-                        ${supabaseConnected ? 'PASS' : 'FAIL'} — Database Connected
-                    </div>
+    }
+
+    function renderHome() {
+        const scoreText = currentScore?.text || 'Loading...';
+        const daysAgo = currentScore?.created_at ? getDaysAgo(currentScore.created_at) : '';
+        const meta = daysAgo ? `Created by a human ${daysAgo}.` : '';
+        const listenCount = currentScore?.usage_count > 1 ? `${currentScore.usage_count} people listened to this` : '';
+
+        return `
+            <div class="score-display">"${scoreText}"</div>
+            ${meta ? `<div class="score-meta">${meta}</div>` : ''}
+            ${listenCount ? `<div class="listen-count">${listenCount}</div>` : ''}
+            <button class="btn-listen" onclick="startFlow()">Listen</button>
+        `;
+    }
+
+    function renderListen() {
+        return `
+            <div class="phase-label">listen...</div>
+            ${renderTimerRing()}
+            <div style="margin-top: 16px;">
+                <span class="recording-indicator"></span>
+                <span style="font-size: 13px; color: #71717a;">recording</span>
+            </div>
+            <div style="margin-top: 24px;">
+                <button class="btn-soft" onclick="finishListenPhase()">next →</button>
+            </div>
+            <div id="listenUploadFallback" class="upload-fallback hidden">
+                <input type="file" accept="audio/*" onchange="handleUpload(this, 'listen')">
+            </div>
+        `;
+    }
+
+    function renderPlayback() {
+        return `
+            <div class="phase-label">hear what you didn't hear</div>
+            <div class="audio-playback">
+                <audio id="playbackAudio" controls autoplay></audio>
+            </div>
+            <div style="margin-top: 24px;">
+                <button class="btn-listen" onclick="goToPhase('sound')">Sound</button>
+            </div>
+        `;
+    }
+
+    function renderSound() {
+        return `
+            <div class="phase-label">sound...</div>
+            ${renderTimerRing()}
+            <div style="margin-top: 16px;">
+                <span class="recording-indicator"></span>
+                <span style="font-size: 13px; color: #71717a;">your response</span>
+            </div>
+            <div style="margin-top: 24px;">
+                <button class="btn-soft" onclick="finishSoundPhase()">next →</button>
+            </div>
+            <div id="soundUploadFallback" class="upload-fallback hidden">
+                <input type="file" accept="audio/*" onchange="handleUpload(this, 'sound')">
+            </div>
+        `;
+    }
+
+    function renderReflect() {
+        return `
+            <div class="phase-label">reflect</div>
+            <textarea class="flow-textarea" id="reflectInput" placeholder="What did you notice?"
+                      oninput="currentSession.reflectionText = this.value"></textarea>
+            <div style="margin-top: 24px;">
+                <button class="btn-listen" onclick="goToPhase('create')">Create</button>
+            </div>
+            <div style="margin-top: 8px;">
+                <button class="btn-soft" onclick="goToPhase('create')">skip</button>
+            </div>
+        `;
+    }
+
+    function renderCreate() {
+        return `
+            <div class="phase-label">create your score</div>
+            <input class="flow-input" id="createInput" placeholder="One line — only you could write"
+                   oninput="currentSession.userScore = this.value">
+            <div style="margin-top: 24px;">
+                <button class="btn-listen" onclick="saveAndFinish()">Save</button>
+            </div>
+            <div style="margin-top: 8px;">
+                <button class="btn-soft" onclick="saveAndFinish()">skip</button>
+            </div>
+        `;
+    }
+
+    function renderDone() {
+        const sourceText = currentScore?.text || '';
+        const userText = currentSession.userScore || '';
+
+        let content = '';
+        if (sourceText && userText) {
+            content = `
+                <div class="transformation">
+                    <div class="from-score">"${sourceText}"</div>
+                    <div class="arrow">↓</div>
+                    <div class="to-score">"${userText}"</div>
+                </div>
+                <div style="margin-top: 20px; font-size: 13px; color: #a1a1aa;">
+                    Your score joins the flow.<br>Someone will begin where you ended.
+                </div>
+            `;
+        } else {
+            content = `
+                <div style="font-size: 13px; color: #a1a1aa;">
+                    Saved to your sound diary.
                 </div>
             `;
         }
-        
-        function enableMicrophone() {
-            if (sandboxMode) return;
-            
-            navigator.mediaDevices.getUserMedia({ audio: true })
-                .then(() => {
-                    micReady = true;
-                    document.getElementById('micStatus').textContent = 'Microphone enabled';
+
+        return `
+            <div class="phase-label">✧</div>
+            ${content}
+            <div style="margin-top: 32px;">
+                <button class="btn-listen" onclick="startNewSession()">Listen again</button>
+            </div>
+            <div class="explain-toggle" onclick="toggleExplanation()">
+                <span id="explainToggleText">What just happened?</span>
+            </div>
+            <div id="explainContent" class="explain-content hidden">
+                <div class="explain-item">
+                    <div class="explain-phase">Listen</div>
+                    <div class="explain-text">You recorded the environment around you. This is the core of Deep Listening — Pauline Oliveros' practice of radical attention to all sound, without judgment or selection.</div>
+                </div>
+                <div class="explain-item">
+                    <div class="explain-phase">Playback</div>
+                    <div class="explain-text">You listened back to what was recorded. Oliveros emphasized re-listening as a way to notice what you missed — the gap between what you perceived in the moment and what was actually there.</div>
+                </div>
+                <div class="explain-item">
+                    <div class="explain-phase">Sound</div>
+                    <div class="explain-text">You responded to the world with your own sound. This is sonic dialogue — a key Deep Listening exercise where you answer the environment, creating a conversation between you and the world.</div>
+                </div>
+                <div class="explain-item">
+                    <div class="explain-phase">Reflect</div>
+                    <div class="explain-text">You wrote down what you noticed. Oliveros kept an observation diary throughout her practice. Journaling awareness makes the invisible shifts in perception visible and lasting.</div>
+                </div>
+                <div class="explain-item">
+                    <div class="explain-phase">Create</div>
+                    <div class="explain-text">You wrote a score — a text instruction for listening. Oliveros created text scores throughout her life, from <em>Sonic Meditations</em> (1971) to <em>Deep Listening: A Composer's Sound Practice</em>. Your score now enters the shared flow.</div>
+                </div>
+                <div style="margin-top: 16px; text-align: center;">
+                    <button class="btn-soft" onclick="goToPhase('about')">Learn more about LSRC</button>
+                </div>
+            </div>
+        `;
+    }
+
+    function toggleExplanation() {
+        const content = document.getElementById('explainContent');
+        const toggle = document.getElementById('explainToggleText');
+        if (content.classList.contains('hidden')) {
+            content.classList.remove('hidden');
+            toggle.textContent = 'What just happened? ▾';
+        } else {
+            content.classList.add('hidden');
+            toggle.textContent = 'What just happened?';
+        }
+    }
+
+    function renderAbout() {
+        return `
+            <div class="about-content">
+                <button class="btn-soft" onclick="goToPhase('home')" style="margin-bottom: 20px;">← back</button>
+
+                <div class="about-section">
+                    <h2>LSRC</h2>
+                    <p>Listen. Sound. Reflect. Create.</p>
+                    <p>A micro-practice of deep listening, inspired by the work of composer and philosopher <strong>Pauline Oliveros</strong> (1932–2016).</p>
+                </div>
+
+                <div class="about-section">
+                    <h2>What is Deep Listening?</h2>
+                    <p>Deep Listening is a practice developed by Pauline Oliveros over decades of work as a composer, improviser, and teacher. It goes beyond simply hearing — it's about expanding awareness to include all sounds, internal and external, without preference or judgment.</p>
+                    <p><em>"Deep Listening is listening in every possible way to everything possible to hear no matter what you are doing."</em> — Pauline Oliveros</p>
+                </div>
+
+                <div class="about-section">
+                    <h2>How LSRC connects to the practice</h2>
+                    <ul class="about-phase-list">
+                        <li><span class="about-phase-name">Listen</span> Record the environment. Oliveros' core practice: radical attention to all sound without selection.</li>
+                        <li><span class="about-phase-name">Playback</span> Hear what you missed. Re-listening reveals the gap between perception and reality.</li>
+                        <li><span class="about-phase-name">Sound</span> Respond with your voice. Sonic dialogue — answering the world with your own sound.</li>
+                        <li><span class="about-phase-name">Reflect</span> Write what you noticed. The observation diary that Oliveros practiced throughout her work.</li>
+                        <li><span class="about-phase-name">Create</span> Write a score. Text instructions for listening, as in <em>Sonic Meditations</em> and <em>Deep Listening: A Composer's Sound Practice</em>.</li>
+                    </ul>
+                </div>
+
+                <div class="about-section">
+                    <h2>Only Humans</h2>
+                    <p>You take a score written by another human. You pass it through your body, your listening, your life experience — and create something new. No algorithm can do this. Only you.</p>
+                    <p>Your score enters the flow. Someone else will begin where you ended. A living chain of human listening.</p>
+                </div>
+
+                <div style="text-align: center; margin-top: 8px;">
+                    <button class="btn-soft" onclick="goToPhase('guide')">Still have questions? Talk to our guide</button>
+                </div>
+            </div>
+        `;
+    }
+
+    // =============================================
+    // GUIDE CHAT (AI Assistant)
+    // =============================================
+
+    let guideMessages = [];
+    let guideThreadId = null;
+    let guideLoading = false;
+
+    function renderGuide() {
+        let messagesHtml = '';
+        if (guideMessages.length === 0) {
+            messagesHtml = `
+                <div class="chat-msg guide">
+                    Welcome. I can tell you more about Deep Listening, Pauline Oliveros, or how this app works. What would you like to know?
+                </div>
+            `;
+        } else {
+            messagesHtml = guideMessages.map(m =>
+                `<div class="chat-msg ${m.role === 'user' ? 'user' : 'guide'}">${escapeHtml(m.text)}</div>`
+            ).join('');
+        }
+
+        if (guideLoading) {
+            messagesHtml += '<div class="chat-msg guide typing">thinking...</div>';
+        }
+
+        return `
+            <div style="text-align: left; width: 100%; max-width: 380px;">
+                <button class="btn-soft" onclick="goToPhase('about')" style="margin-bottom: 12px;">← back</button>
+            </div>
+            <div class="chat-container">
+                <div class="chat-messages" id="chatMessages">
+                    ${messagesHtml}
+                </div>
+                <div class="chat-input-row">
+                    <input class="chat-input" id="chatInput" placeholder="Ask about Deep Listening..."
+                           onkeydown="if(event.key==='Enter')sendGuideMessage()">
+                    <button class="chat-send" onclick="sendGuideMessage()">→</button>
+                </div>
+            </div>
+        `;
+    }
+
+    async function sendGuideMessage() {
+        const input = document.getElementById('chatInput');
+        if (!input) return;
+        const text = input.value.trim();
+        if (!text || guideLoading) return;
+
+        guideMessages.push({ role: 'user', text });
+        input.value = '';
+        guideLoading = true;
+        render();
+        scrollChatToBottom();
+
+        try {
+            const resp = await fetch('/api/guide', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    message: text,
+                    thread_id: guideThreadId
                 })
-                .catch((e) => {
-                    console.warn('Microphone access denied:', e);
-                    document.getElementById('micStatus').textContent = 'Microphone access denied';
-                });
-        }
-        
-        function setPhase(phase) {
-            currentPhase = phase;
-            updateUI();
-        }
-        
-        function updateUI() {
-            // Hide all phases
-            const phases = ['introPhase', 'listenChoicePhase', 'pastCapsulesPhase', 'pastPlayerPhase', 'listeningPhase', 'soundPhase', 'reflectPhase', 'createPhase', 'donePhase'];
-            phases.forEach(phase => {
-                document.getElementById(phase).classList.add('hidden');
             });
-            
-            // Show current phase
-            document.getElementById(currentPhase + 'Phase').classList.remove('hidden');
-            
-            // Update session summary
-            if (fragments.length > 0) {
-                document.getElementById('sessionSummary').classList.remove('hidden');
-                updateSessionSummary();
-            } else {
-                document.getElementById('sessionSummary').classList.add('hidden');
-            }
-            
-            // Update reflect button visibility
-            if (fragments.length > 0) {
-                document.getElementById('reflectButton').classList.remove('hidden');
-            }
-            
-            // Update sound navigation
-            if (fragments.length > 0) {
-                document.getElementById('soundNavigation').classList.remove('hidden');
-            }
+
+            if (!resp.ok) throw new Error('Guide API error');
+
+            const data = await resp.json();
+            guideThreadId = data.thread_id || guideThreadId;
+            guideMessages.push({ role: 'guide', text: data.reply || 'Sorry, I could not respond.' });
+        } catch (e) {
+            console.error('Guide chat error:', e);
+            guideMessages.push({ role: 'guide', text: 'Something went wrong. Please try again.' });
         }
-        
-        async function chooseListenEnvironment() {
-            currentListenUrl = null;
-            // Создаем фрагмент для этого цикла
-            await createFragment();
-            setPhase('listening');
+
+        guideLoading = false;
+        render();
+        setTimeout(scrollChatToBottom, 350);
+    }
+
+    function scrollChatToBottom() {
+        const el = document.getElementById('chatMessages');
+        if (el) el.scrollTop = el.scrollHeight;
+    }
+
+    function escapeHtml(str) {
+        const div = document.createElement('div');
+        div.textContent = str;
+        return div.innerHTML;
+    }
+
+    function renderTimerRing() {
+        const circumference = 2 * Math.PI * 52;
+        return `
+            <div class="timer-ring">
+                <svg viewBox="0 0 120 120">
+                    <circle class="bg" cx="60" cy="60" r="52" fill="none" stroke-width="4"/>
+                    <circle class="progress" id="timerProgress" cx="60" cy="60" r="52" fill="none" stroke-width="4"
+                            stroke-dasharray="${circumference}" stroke-dashoffset="${circumference}" stroke-linecap="round"/>
+                </svg>
+                <div class="timer-seconds" id="timerText">0</div>
+            </div>
+        `;
+    }
+
+    function renderArchiveDetail() {
+        if (!window._archiveDetailData) return '<div class="phase-label">Loading...</div>';
+        const d = window._archiveDetailData;
+        const date = new Date(d.capsule.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+
+        let html = `
+            <div style="text-align: left; width: 100%; max-width: 340px;">
+                <button class="btn-soft" onclick="goToPhase('home')" style="margin-bottom: 16px;">← back</button>
+                <div class="archive-detail">
+                    <div class="archive-detail-label">Date</div>
+                    <div style="font-size: 14px; color: #52525b;">${date}</div>
+        `;
+
+        if (d.scoreText) {
+            html += `
+                <div class="archive-detail-label">Source score</div>
+                <div style="font-style: italic; color: #52525b;">"${d.scoreText}"</div>
+            `;
         }
-        
-        async function chooseListenPast() {
-            setPhase('pastCapsules');
-            await loadPastCapsules();
+        if (d.finalScoreText) {
+            html += `
+                <div class="archive-detail-label">Your score</div>
+                <div style="font-weight: 600; color: #27272a;">"${d.finalScoreText}"</div>
+            `;
         }
-        
-        // Load past capsules from database
-        async function loadPastCapsules() {
-            console.log('📂 loadPastCapsules called, userId:', currentUserId, 'supabaseConnected:', supabaseConnected);
-            const listEl = document.getElementById('pastCapsulesList');
-            listEl.innerHTML = '<div class="text-sm text-gray-500">Loading...</div>';
-            
-            if (!supabaseConnected) {
-                console.log('❌ Database not connected');
-                listEl.innerHTML = '<div class="text-sm text-gray-500">Database not connected</div>';
-                return;
+        if (d.reflectionText) {
+            html += `
+                <div class="archive-detail-label">Reflection</div>
+                <div style="color: #71717a;">${d.reflectionText}</div>
+            `;
+        }
+        if (d.listenUrl) {
+            html += `
+                <div class="archive-detail-label">Listen</div>
+                <audio controls src="${d.listenUrl}"></audio>
+            `;
+        }
+        if (d.soundUrl) {
+            html += `
+                <div class="archive-detail-label">Sound</div>
+                <audio controls src="${d.soundUrl}"></audio>
+            `;
+        }
+        html += `</div></div>`;
+        return html;
+    }
+
+    // =============================================
+    // FLOW LOGIC
+    // =============================================
+
+    async function startFlow() {
+        // Request mic early
+        try {
+            if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+                await navigator.mediaDevices.getUserMedia({ audio: true });
             }
-            
+        } catch (e) {
+            console.warn('Mic pre-request failed:', e);
+        }
+
+        await loadScore();
+        currentSession = {
+            capsuleId: null, fragmentId: null, initialScoreId: currentScore?.id || null,
+            listenBlobUrl: null, soundBlobUrl: null, listenBlob: null, soundBlob: null,
+            reflectionText: '', userScore: '',
+        };
+
+        // Create capsule + fragment in DB
+        if (supabaseConnected && currentScore?.id) {
             try {
-                // Get user's own capsules
-                const { data: capsules, error } = await sbClient
-                    .from('capsules')
-                    .select(`
-                        id,
-                        created_at,
-                        is_public,
-                        user_id,
-                        initial_score_id,
-                        final_score_id
-                    `)
-                    .eq('user_id', currentUserId)
-                    .order('created_at', { ascending: false })
-                    .limit(30);
-                
-                if (error) throw error;
-                
-                if (!capsules || capsules.length === 0) {
-                    listEl.innerHTML = '<div class="text-sm text-gray-500">No past capsules found</div>';
-                    return;
+                const { data: cap } = await sbClient.from('capsules').insert({
+                    user_id: currentUserId || 'anonymous',
+                    initial_score_id: currentScore.id,
+                    is_public: true
+                }).select().single();
+                if (cap) currentSession.capsuleId = cap.id;
+
+                const { data: frag } = await sbClient.from('fragments').insert({
+                    capsule_id: currentSession.capsuleId,
+                    cycle_number: 1,
+                    listen_source: 'environment'
+                }).select().single();
+                if (frag) currentSession.fragmentId = frag.id;
+            } catch (e) {
+                console.error('DB session create error:', e);
+            }
+        }
+
+        goToPhase('listen');
+        setTimeout(() => startRecordingAuto('listen'), 400);
+    }
+
+    function goToPhase(phase) {
+        currentPhase = phase;
+        render();
+
+        // Set up playback audio after render
+        if (phase === 'playback' && currentSession.listenBlobUrl) {
+            setTimeout(() => {
+                const audio = document.getElementById('playbackAudio');
+                if (audio) audio.src = currentSession.listenBlobUrl;
+            }, 350);
+        }
+    }
+
+    async function finishListenPhase() {
+        stopCurrentRecording();
+        // Small delay to let onstop handler complete
+        setTimeout(() => goToPhase('playback'), 500);
+    }
+
+    async function finishSoundPhase() {
+        stopCurrentRecording();
+        setTimeout(() => goToPhase('reflect'), 500);
+    }
+
+    async function saveAndFinish() {
+        const userScore = currentSession.userScore?.trim() || '';
+        const reflectionText = currentSession.reflectionText?.trim() || '';
+
+        if (supabaseConnected && currentSession.capsuleId) {
+            try {
+                let finalScoreId = null;
+                if (userScore) {
+                    const { data: scoreData } = await sbClient.from('scores').insert({
+                        text: userScore,
+                        author_user_id: currentUserId,
+                        source: 'user_created',
+                        is_public: true,
+                        parent_score_id: currentScore?.id || null
+                    }).select().single();
+                    if (scoreData) finalScoreId = scoreData.id;
                 }
-                
-                // Get fragments with audio for these capsules
-                const capsuleIds = capsules.map(c => c.id);
-                const { data: fragments, error: fragError } = await sbClient
-                    .from('fragments')
-                    .select(`
-                        id,
-                        capsule_id,
-                        cycle_number,
-                        listen_audio_id,
-                        sound_audio_id
-                    `)
-                    .in('capsule_id', capsuleIds);
-                
-                if (fragError) throw fragError;
-                
-                // Get audio files for fragments
-                const listenAudioIds = fragments.filter(f => f.listen_audio_id).map(f => f.listen_audio_id);
-                const soundAudioIds = fragments.filter(f => f.sound_audio_id).map(f => f.sound_audio_id);
-                const allAudioIds = [...new Set([...listenAudioIds, ...soundAudioIds])];
-                
-                let audioFiles = [];
-                if (allAudioIds.length > 0) {
-                    const { data: audioData, error: audioError } = await sbClient
-                        .from('audio_files')
-                        .select('id, file_url')
-                        .in('id', allAudioIds);
-                    if (!audioError) audioFiles = audioData;
-                }
-                
-                // Get scores for capsules (both initial and final)
-                const scoreIds = [...new Set([
-                    ...capsules.map(c => c.initial_score_id),
-                    ...capsules.map(c => c.final_score_id)
-                ].filter(Boolean))];
-                let scores = [];
-                if (scoreIds.length > 0) {
-                    const { data: scoreData, error: scoreError } = await sbClient
-                        .from('scores')
-                        .select('id, text')
-                        .in('id', scoreIds);
-                    if (!scoreError) scores = scoreData;
-                }
-                
-                // Build audio lookup
-                const audioLookup = {};
-                audioFiles.forEach(a => audioLookup[a.id] = a.file_url);
-                
-                // Build score lookup
-                const scoreLookup = {};
-                scores.forEach(s => scoreLookup[s.id] = s.text);
-                
-                // Filter capsules that have fragments with audio
-                const capsulesWithAudio = capsules.filter(capsule => {
-                    const capsuleFragments = fragments.filter(f => f.capsule_id === capsule.id);
-                    return capsuleFragments.some(f => 
-                        (f.listen_audio_id && audioLookup[f.listen_audio_id]) ||
-                        (f.sound_audio_id && audioLookup[f.sound_audio_id])
-                    );
-                });
-                
-                if (capsulesWithAudio.length === 0) {
-                    listEl.innerHTML = '<div class="text-sm text-gray-500">No past capsules with audio found</div>';
-                    return;
-                }
-                
-                // Build HTML for capsules list
-                let html = '';
-                capsulesWithAudio.forEach(capsule => {
-                    const date = new Date(capsule.created_at).toLocaleDateString('en-US', {
-                        month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'
+
+                await sbClient.from('capsules').update({
+                    final_score_id: finalScoreId,
+                    is_public: true,
+                    transport: inTelegram ? 'telegram_webapp' : 'web'
+                }).eq('id', currentSession.capsuleId);
+
+                if (currentSession.fragmentId && reflectionText) {
+                    await sbClient.from('reflections').insert({
+                        fragment_id: currentSession.fragmentId,
+                        text: reflectionText,
+                        transcription_source: 'user_typed'
                     });
-                    const initialScore = scoreLookup[capsule.initial_score_id] || '';
-                    const finalScore = scoreLookup[capsule.final_score_id] || '';
-                    const capsuleFragments = fragments.filter(f => f.capsule_id === capsule.id);
-                    const fragmentsWithAudio = capsuleFragments.filter(f => 
-                        (f.listen_audio_id && audioLookup[f.listen_audio_id]) ||
-                        (f.sound_audio_id && audioLookup[f.sound_audio_id])
-                    );
-                    
-                    let cardContent = `<div class="text-sm" style="color: #6b7280;">${date}</div>`;
-                    if (initialScore) {
-                        cardContent += `<div style="font-style: italic; margin-top: 4px;">"${initialScore.substring(0, 60)}${initialScore.length > 60 ? '...' : ''}"</div>`;
-                    }
-                    if (finalScore) {
-                        cardContent += `<div style="margin-top: 4px; font-weight: 600;">→ "${finalScore.substring(0, 60)}${finalScore.length > 60 ? '...' : ''}"</div>`;
-                    }
-                    
-                    html += `
-                        <div class="fragment" style="margin-bottom: 12px; cursor: pointer;" onclick="selectPastCapsule('${capsule.id}')">
-                            ${cardContent}
-                        </div>
-                    `;
-                });
-                
-                listEl.innerHTML = html;
-                
-            } catch (error) {
-                console.error('Failed to load past capsules:', error);
-                listEl.innerHTML = '<div class="text-sm" style="color: #dc2626;">Failed to load capsules: ' + error.message + '</div>';
+                }
+            } catch (e) {
+                console.error('Save error:', e);
             }
         }
-        
-        // Select and display a past capsule
-        let selectedPastCapsule = null;
-        
-        async function selectPastCapsule(capsuleId) {
-            if (!supabaseConnected) return;
-            
+
+        if (tg && typeof tg.sendData === 'function') {
             try {
-                // Get capsule
-                const { data: capsule, error } = await sbClient
-                    .from('capsules')
-                    .select('id, created_at, initial_score_id, final_score_id')
-                    .eq('id', capsuleId)
-                    .single();
-                
-                if (error) throw error;
-                
-                // Get both initial and final score texts
-                let scoreText = '';
-                let finalScoreText = '';
-                const scoreIdsToFetch = [capsule.initial_score_id, capsule.final_score_id].filter(Boolean);
-                if (scoreIdsToFetch.length > 0) {
-                    const { data: scoresData } = await sbClient
-                        .from('scores')
-                        .select('id, text')
-                        .in('id', scoreIdsToFetch);
-                    if (scoresData) {
-                        const initial = scoresData.find(s => s.id === capsule.initial_score_id);
-                        const final_ = scoresData.find(s => s.id === capsule.final_score_id);
-                        if (initial) scoreText = initial.text;
-                        if (final_) finalScoreText = final_.text;
-                    }
-                }
-                
-                // Get fragments with audio
-                const { data: fragments, error: fragError } = await sbClient
-                    .from('fragments')
-                    .select('id, cycle_number, listen_audio_id, sound_audio_id')
-                    .eq('capsule_id', capsuleId)
-                    .order('cycle_number', { ascending: true });
-                
-                if (fragError) throw fragError;
-                
-                // Get audio files
-                const listenIds = fragments.filter(f => f.listen_audio_id).map(f => f.listen_audio_id);
-                const soundIds = fragments.filter(f => f.sound_audio_id).map(f => f.sound_audio_id);
-                const allIds = [...new Set([...listenIds, ...soundIds])];
-                
-                let audioLookup = {};
-                if (allIds.length > 0) {
-                    const { data: audioFiles } = await sbClient
-                        .from('audio_files')
-                        .select('id, file_url')
-                        .in('id', allIds);
-                    if (audioFiles) {
-                        audioFiles.forEach(a => audioLookup[a.id] = a.file_url);
-                    }
-                }
-                
-                // Find first fragment with audio
-                const fragmentWithAudio = fragments.find(f => 
-                    (f.listen_audio_id && audioLookup[f.listen_audio_id]) ||
-                    (f.sound_audio_id && audioLookup[f.sound_audio_id])
-                );
-                
-                if (!fragmentWithAudio) {
-                    alert('No audio found in this capsule');
-                    return;
-                }
-                
-                const listenUrl = audioLookup[fragmentWithAudio.listen_audio_id] || null;
-                const soundUrl = audioLookup[fragmentWithAudio.sound_audio_id] || null;
-                
-                // Get reflection for the fragment
-                let reflectionText = '';
-                if (fragmentWithAudio) {
-                    const { data: reflections } = await sbClient
-                        .from('reflections')
-                        .select('text')
-                        .eq('fragment_id', fragmentWithAudio.id)
-                        .limit(1);
-                    if (reflections && reflections.length > 0) {
-                        reflectionText = reflections[0].text;
-                    }
-                }
-                
-                selectedPastCapsule = {
-                    capsule,
-                    fragment: fragmentWithAudio,
-                    listenUrl,
-                    soundUrl,
-                    scoreText,
-                    finalScoreText,
-                    reflectionText
-                };
-                
-                // Update UI
-                const date = new Date(capsule.created_at).toLocaleDateString('en-US', {
-                    month: 'short', day: 'numeric', year: 'numeric'
-                });
-                
-                let infoHtml = `<div style="color: #6b7280; margin-bottom: 12px;">${date}</div>`;
-                if (scoreText) {
-                    infoHtml += `<div style="margin-bottom: 8px;"><span style="color: #9ca3af; font-size: 11px; text-transform: uppercase;">Source score</span><br><em>"${scoreText}"</em></div>`;
-                }
-                if (finalScoreText) {
-                    infoHtml += `<div style="margin-bottom: 8px;"><span style="color: #9ca3af; font-size: 11px; text-transform: uppercase;">Your score</span><br><strong><em>"${finalScoreText}"</em></strong></div>`;
-                }
-                if (reflectionText) {
-                    infoHtml += `<div style="margin-bottom: 8px;"><span style="color: #9ca3af; font-size: 11px; text-transform: uppercase;">Reflection</span><br><span style="color: #6b7280;">${reflectionText}</span></div>`;
-                }
-                document.getElementById('pastCapsuleInfo').innerHTML = infoHtml;
-                
-                // Set audio sources
-                const listenAudio = document.getElementById('pastListenAudio');
-                const soundAudio = document.getElementById('pastSoundAudio');
-                
-                function setAudioSource(audioEl, url) {
-                    if (!url) {
-                        audioEl.style.display = 'none';
-                        return;
-                    }
-                    audioEl.innerHTML = '';
-                    // Detect format from URL, fall back to trying both
-                    const isMp4 = url.endsWith('.mp4') || url.endsWith('.m4a');
-                    const isWebm = url.endsWith('.webm');
-                    if (isMp4) {
-                        audioEl.src = url;
-                    } else if (isWebm) {
-                        // Try webm, with mp4 fallback (helps if file is actually mp4 named .webm on iOS)
-                        const srcWebm = document.createElement('source');
-                        srcWebm.src = url;
-                        srcWebm.type = 'audio/webm';
-                        const srcMp4 = document.createElement('source');
-                        srcMp4.src = url;
-                        srcMp4.type = 'audio/mp4';
-                        audioEl.appendChild(srcWebm);
-                        audioEl.appendChild(srcMp4);
-                    } else {
-                        audioEl.src = url;
-                    }
-                    audioEl.load();
-                    audioEl.style.display = 'block';
-                    audioEl.onerror = () => console.warn('Audio playback error for:', url);
-                }
-                
-                setAudioSource(listenAudio, listenUrl);
-                setAudioSource(soundAudio, soundUrl);
-                
-                setPhase('pastPlayer');
-                
-            } catch (error) {
-                console.error('Failed to load capsule:', error);
-                alert('Failed to load capsule: ' + error.message);
-            }
+                tg.sendData(JSON.stringify({ t: 'capsule_saved', score: userScore }));
+            } catch (e) {}
         }
-        
-        // Use past capsule audio as listening source for new cycle
-        async function usePastCapsuleAsSource() {
-            if (!selectedPastCapsule) return;
-            
-            // Create a new fragment with past_capsule as source
-            await createFragment('past_capsule');
-            
-            // Use the listen or sound audio from past capsule as our "listen" source
-            const audioUrl = selectedPastCapsule.listenUrl || selectedPastCapsule.soundUrl;
-            
-            if (audioUrl) {
-                currentListenUrl = audioUrl;
-                document.getElementById('listenAudio').src = audioUrl;
-                document.getElementById('listenAudio').classList.remove('hidden');
-                document.getElementById('soundBtn').classList.remove('hidden');
-                document.getElementById('recordingStatus').textContent = '🎧 Listening to past capsule';
+
+        goToPhase('done');
+    }
+
+    async function startNewSession() {
+        currentPhase = 'home';
+        await loadScore();
+        render();
+    }
+
+    // =============================================
+    // RECORDING with soft timer
+    // =============================================
+
+    async function startRecordingAuto(type) {
+        try {
+            if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                throw new Error('MediaRecorder not supported');
             }
-            
-            setPhase('listening');
-        }
-        
-        async function startRecording() {
-            // Показать статус записи
-            document.getElementById('recordingStatus').textContent = 'Requesting microphone access...';
-            
-            // Сбрасываем sandbox режим при попытке записи
-            sandboxMode = false;
-            
-            try {
-                // Проверяем поддержку MediaRecorder
-                if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-                    throw new Error('MediaRecorder not supported');
-                }
-                
-                // Запрашиваем доступ к микрофону
-                const stream = await navigator.mediaDevices.getUserMedia({ 
-                    audio: {
-                        echoCancellation: true,
-                        noiseSuppression: true,
-                        sampleRate: 44100
-                    }
-                });
-                
-                // Создаем MediaRecorder
-                const options = { mimeType: 'audio/webm;codecs=opus' };
-                if (!MediaRecorder.isTypeSupported(options.mimeType)) {
-                    options.mimeType = 'audio/webm';
-                }
-                if (!MediaRecorder.isTypeSupported(options.mimeType)) {
-                    options.mimeType = 'audio/mp4';
-                }
-                
-                mediaRecorder = new MediaRecorder(stream, options);
-                chunks = [];
-                
-                mediaRecorder.ondataavailable = e => {
-                    if (e.data.size > 0) chunks.push(e.data);
-                };
-                
-                mediaRecorder.onstop = async () => {
-                    const blob = new Blob(chunks, { type: mediaRecorder.mimeType });
-                    
-                    // Создаем локальный URL для воспроизведения
-                    currentListenUrl = URL.createObjectURL(blob);
-                    document.getElementById('listenAudio').src = currentListenUrl;
-                    document.getElementById('listenAudio').classList.remove('hidden');
-                    document.getElementById('soundBtn').classList.remove('hidden');
-                    
-                    // Сохраняем в Supabase Storage
-                    try {
-                        console.log('🔧 Attempting to save audio to Supabase...');
-                        const result = await saveAudioToSupabase(blob, 'listen');
-                        console.log('🔧 Save result:', result);
-                        document.getElementById('recordingStatus').textContent = '✅ Audio saved successfully';
-                    } catch (error) {
-                        console.error('🔧 Failed to save audio:', error);
-                        console.error('🔧 Error details:', error.message, error.stack);
-                        document.getElementById('recordingStatus').textContent = `⚠️ Audio recorded locally (save failed: ${error.message})`;
-                    }
-                    
-                    // Останавливаем все треки
-                    stream.getTracks().forEach(track => track.stop());
-                };
-                
-                mediaRecorder.onerror = (event) => {
-                    console.error('MediaRecorder error:', event.error);
-                    document.getElementById('recordingStatus').textContent = '❌ Recording error';
-                    stream.getTracks().forEach(track => track.stop());
-                };
-                
-                // Начинаем запись
-                mediaRecorder.start(1000); // Собираем данные каждую секунду
-                isRecording = true;
-                
-                document.getElementById('recordBtn').textContent = '⏹️ Stop';
-                document.getElementById('recordBtn').onclick = stopRecording;
-                document.getElementById('recordingStatus').textContent = '🎤 Recording... (click Stop when done)';
-                
-            } catch (error) {
-                console.error('Recording setup failed:', error);
-                
-                // Показываем пользователю варианты
-                if (error.name === 'NotAllowedError') {
-                    document.getElementById('recordingStatus').innerHTML = 
-                        '❌ Microphone access denied.<br>Please allow microphone access and try again.';
-                } else if (error.name === 'NotFoundError') {
-                    document.getElementById('recordingStatus').innerHTML = 
-                        '❌ No microphone found.<br>Please connect a microphone and try again.';
+
+            const stream = await navigator.mediaDevices.getUserMedia({
+                audio: { echoCancellation: false, noiseSuppression: false, sampleRate: 44100 }
+            });
+
+            let mimeType = 'audio/webm;codecs=opus';
+            if (!MediaRecorder.isTypeSupported(mimeType)) mimeType = 'audio/webm';
+            if (!MediaRecorder.isTypeSupported(mimeType)) mimeType = 'audio/mp4';
+
+            mediaRecorder = new MediaRecorder(stream, { mimeType });
+            chunks = [];
+
+            mediaRecorder.ondataavailable = e => { if (e.data.size > 0) chunks.push(e.data); };
+
+            mediaRecorder.onstop = async () => {
+                stream.getTracks().forEach(t => t.stop());
+                const blob = new Blob(chunks, { type: mediaRecorder.mimeType });
+                const blobUrl = URL.createObjectURL(blob);
+
+                if (type === 'listen') {
+                    currentSession.listenBlob = blob;
+                    currentSession.listenBlobUrl = blobUrl;
                 } else {
-                    document.getElementById('recordingStatus').innerHTML = 
-                        '❌ Recording not available.<br>You can upload an audio file instead.';
+                    currentSession.soundBlob = blob;
+                    currentSession.soundBlobUrl = blobUrl;
                 }
-                
-                // Показываем опцию загрузки файла
-                document.getElementById('uploadControls').classList.remove('hidden');
-                
-                // Активируем sandbox режим только если это не проблема с разрешениями
-                if (error.name !== 'NotAllowedError' && error.name !== 'NotFoundError') {
-                    sandboxMode = true;
-                    document.getElementById('sandboxBanner').classList.remove('hidden');
-                }
-            }
-        }
-        
-        function stopRecording() {
-            if (mediaRecorder && isRecording) {
-                mediaRecorder.stop();
-                mediaRecorder.stream.getTracks().forEach(track => track.stop());
-                isRecording = false;
-                document.getElementById('recordBtn').textContent = '🎤 Record';
-                document.getElementById('recordBtn').onclick = startRecording;
-            }
-        }
-        
-        function goSoundFromListen() {
-            setPhase('sound');
-            currentSoundUrl = null;
-        }
-        
-        async function startSoundRecording() {
-            // Показать статус записи
-            const statusElement = document.getElementById('soundRecordingStatus') || 
-                                document.getElementById('recordingStatus');
-            if (statusElement) {
-                statusElement.textContent = 'Requesting microphone access...';
-            }
-            
-            // Сбрасываем sandbox режим при попытке записи
-            sandboxMode = false;
-            
-            try {
-                // Проверяем поддержку MediaRecorder
-                if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-                    throw new Error('MediaRecorder not supported');
-                }
-                
-                // Запрашиваем доступ к микрофону
-                const stream = await navigator.mediaDevices.getUserMedia({ 
-                    audio: {
-                        echoCancellation: true,
-                        noiseSuppression: true,
-                        sampleRate: 44100
-                    }
-                });
-                
-                // Создаем MediaRecorder
-                const options = { mimeType: 'audio/webm;codecs=opus' };
-                if (!MediaRecorder.isTypeSupported(options.mimeType)) {
-                    options.mimeType = 'audio/webm';
-                }
-                if (!MediaRecorder.isTypeSupported(options.mimeType)) {
-                    options.mimeType = 'audio/mp4';
-                }
-                
-                mediaRecorder = new MediaRecorder(stream, options);
-                chunks = [];
-                
-                mediaRecorder.ondataavailable = e => {
-                    if (e.data.size > 0) chunks.push(e.data);
-                };
-                
-                mediaRecorder.onstop = async () => {
-                    const blob = new Blob(chunks, { type: mediaRecorder.mimeType });
-                    
-                    // Создаем локальный URL для воспроизведения
-                    currentSoundUrl = URL.createObjectURL(blob);
-                    document.getElementById('soundAudio').src = currentSoundUrl;
-                    document.getElementById('soundAudio').classList.remove('hidden');
-                    document.getElementById('soundContinueBtn').classList.remove('hidden');
-                    
-                    // Сохраняем в Supabase Storage
-                    try {
-                        await saveAudioToSupabase(blob, 'sound');
-                        if (statusElement) {
-                            statusElement.textContent = '✅ Audio saved successfully';
-                        }
-                    } catch (error) {
-                        console.error('Failed to save sound audio:', error);
-                        if (statusElement) {
-                            statusElement.textContent = '⚠️ Audio recorded locally (save failed)';
-                        }
-                    }
-                    
-                    // Останавливаем все треки
-                    stream.getTracks().forEach(track => track.stop());
-                };
-                
-                mediaRecorder.onerror = (event) => {
-                    console.error('MediaRecorder error:', event.error);
-                    if (statusElement) {
-                        statusElement.textContent = '❌ Recording error';
-                    }
-                    stream.getTracks().forEach(track => track.stop());
-                };
-                
-                // Начинаем запись
-                mediaRecorder.start(1000);
-                isRecording = true;
-                
-                document.getElementById('soundRecordBtn').textContent = '⏹️ Stop';
-                document.getElementById('soundRecordBtn').onclick = stopSoundRecording;
-                if (statusElement) {
-                    statusElement.textContent = '🎤 Recording sound... (click Stop when done)';
-                }
-                
-            } catch (error) {
-                console.error('Sound recording setup failed:', error);
-                
-                // Показываем пользователю варианты
-                if (statusElement) {
-                    if (error.name === 'NotAllowedError') {
-                        statusElement.innerHTML = 
-                            '❌ Microphone access denied.<br>Please allow microphone access and try again.';
-                    } else if (error.name === 'NotFoundError') {
-                        statusElement.innerHTML = 
-                            '❌ No microphone found.<br>Please connect a microphone and try again.';
-                    } else {
-                        statusElement.innerHTML = 
-                            '❌ Recording not available.<br>You can upload an audio file instead.';
-                    }
-                }
-                
-                // Показываем опцию загрузки файла для sound тоже
-                const uploadControls = document.getElementById('soundUploadControls') || 
-                                     document.getElementById('uploadControls');
-                if (uploadControls) {
-                    uploadControls.classList.remove('hidden');
-                }
-                
-                // Активируем sandbox режим только если это не проблема с разрешениями
-                if (error.name !== 'NotAllowedError' && error.name !== 'NotFoundError') {
-                    sandboxMode = true;
-                    document.getElementById('sandboxBanner').classList.remove('hidden');
-                }
-            }
-        }
-        
-        function stopSoundRecording() {
-            if (mediaRecorder && isRecording) {
-                mediaRecorder.stop();
-                mediaRecorder.stream.getTracks().forEach(track => track.stop());
-                isRecording = false;
-                document.getElementById('soundRecordBtn').textContent = '🎤 Record';
-                document.getElementById('soundRecordBtn').onclick = startSoundRecording;
-            }
-        }
-        
-        function finishSound() {
-            const fragment = {
-                listenSource: 'environment',
-                listenUrl: currentListenUrl || '',
-                soundUrl: currentSoundUrl || '',
-                cycleNumber: fragments.length + 1,
+
+                // Save to Supabase in background
+                saveAudioAsync(blob, type);
             };
-            fragments.push(fragment);
-            currentListenUrl = null;
-            currentSoundUrl = null;
-            setPhase('listenChoice');
+
+            mediaRecorder.start(1000);
+            isRecording = true;
+            startSoftTimer();
+
+        } catch (e) {
+            console.warn('Recording failed:', e);
+            // Show upload fallback
+            const fallback = document.getElementById(type + 'UploadFallback');
+            if (fallback) fallback.classList.remove('hidden');
         }
-        
-        async function saveCapsule() {
-            const userScoreTitle = document.getElementById('userScoreTitle').value.trim();
-            const reflectionText = document.getElementById('reflectionText').value.trim();
-            const isPublic = document.getElementById('isPublic').checked;
-            
-            if (!userScoreTitle && fragments.length === 0) {
-                alert('Please write a score or create some fragments first');
-                return;
-            }
-            
-            // Show loading state
-            const saveBtn = document.getElementById('saveBtn');
-            saveBtn.textContent = 'Saving...';
-            saveBtn.classList.add('loading');
-            
-            const capsule = {
-                userScoreTitle: userScoreTitle || `Score #${Date.now()}`,
-                reflectionText,
-                isPublic,
-                fragments,
-                transport: inTelegram ? 'telegram_webapp' : 'web',
-            };
-            
-            const saved = await saveCapsuleToDatabase(capsule);
-            
-            // Update confirm message
-            document.getElementById('confirmMessage').textContent = `Your score has been added to the Listening Archive.`;
-            if (isPublic) {
-                document.getElementById('publicMessage').classList.remove('hidden');
-            }
-            
-            // Send data to Telegram if available
-            if (tg && typeof tg.sendData === 'function') {
-                try {
-                    const payload = {
-                        t: 'capsule_saved',
-                        id: saved.id,
-                        public: capsule.isPublic,
-                        score: capsule.userScoreTitle,
-                        fragments: capsule.fragments.length,
-                        createdAt: new Date().toISOString()
-                    };
-                    tg.sendData(JSON.stringify(payload));
-                } catch (e) {
-                    console.warn('sendData failed', e);
-                }
-            }
-            
-            setPhase('done');
+    }
+
+    function stopCurrentRecording() {
+        clearSoftTimer();
+        if (mediaRecorder && isRecording) {
+            mediaRecorder.stop();
+            isRecording = false;
         }
-        
-        function newSession() {
-            fragments = [];
-            currentListenUrl = null;
-            currentSoundUrl = null;
-            currentSession = {
-                initialScore: null,
-                initialScoreId: null,
-                capsuleId: null,
-                currentFragmentId: null,
-                listenAudioId: null,
-                soundAudioId: null
-            };
-            document.getElementById('reflectionText').value = '';
-            document.getElementById('userScoreTitle').value = '';
-            document.getElementById('isPublic').checked = true;
-            loadInitialScore();
-            setPhase('intro');
-        }
-        
-        async function saveAudioToSupabase(blob, type) {
-            console.log('🔧 saveAudioToSupabase called with:', { blobSize: blob.size, type });
-            
-            if (!sbClient) {
-                throw new Error('Supabase not initialized');
+    }
+
+    function startSoftTimer() {
+        timerElapsed = 0;
+        const circumference = 2 * Math.PI * 52;
+        timerInterval = setInterval(() => {
+            timerElapsed++;
+            const progress = document.getElementById('timerProgress');
+            const text = document.getElementById('timerText');
+            if (progress) {
+                const offset = circumference - (timerElapsed / SOFT_TIMER_SECONDS) * circumference;
+                progress.setAttribute('stroke-dashoffset', Math.max(offset, 0));
             }
-            
-            console.log('🔧 Supabase client exists:', !!sbClient);
-            console.log('🔧 Supabase storage:', !!sbClient.storage);
-            
-            // Генерируем уникальное имя файла
+            if (text) text.textContent = timerElapsed;
+
+            if (timerElapsed === SOFT_TIMER_SECONDS) {
+                // Soft signal — subtle vibration if available
+                if (navigator.vibrate) navigator.vibrate(100);
+                clearInterval(timerInterval);
+            }
+        }, 1000);
+    }
+
+    function clearSoftTimer() {
+        if (timerInterval) clearInterval(timerInterval);
+        timerInterval = null;
+        timerElapsed = 0;
+    }
+
+    // =============================================
+    // AUDIO SAVE (background, non-blocking)
+    // =============================================
+
+    async function saveAudioAsync(blob, type) {
+        if (!sbClient || !supabaseConnected) return;
+
+        try {
             const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
             const userId = tg?.initDataUnsafe?.user?.id || 'anonymous';
-            // Use actual format extension based on what the browser recorded
-            const contentType = blob.type && blob.type !== '' ? blob.type.replace('video/', 'audio/') : 'audio/webm';
-            const ext = contentType.includes('mp4') || contentType.includes('m4a') ? 'mp4' : 'webm';
+            const ct = blob.type && blob.type !== '' ? blob.type.replace('video/', 'audio/') : 'audio/webm';
+            const ext = ct.includes('mp4') || ct.includes('m4a') ? 'mp4' : 'webm';
             const fileName = `${type}_${userId}_${timestamp}.${ext}`;
             const filePath = `audio/${fileName}`;
-            
-            try {
-                // Проверяем существование bucket и создаем если нужно
-                const { data: buckets, error: bucketsError } = await sbClient.storage.listBuckets();
-                console.log('🔧 Available buckets:', buckets);
-                console.log('🔧 Buckets error:', bucketsError);
-                
-                const audioBucketExists = buckets?.some(bucket => bucket.name === 'audio');
-                if (!audioBucketExists) {
-                    console.log('🔧 Audio bucket not found in list, but it should exist');
-                    // Bucket уже создан через MCP, просто продолжаем
-                }
-                
-                // Загружаем файл в Supabase Storage
-                const { data: uploadData, error: uploadError } = await sbClient.storage
-                    .from('audio')
-                    .upload(filePath, blob, {
-                        contentType: contentType,
-                        upsert: false
-                    });
-                
-                if (uploadError) {
-                    throw uploadError;
-                }
-                
-                // Строим URL вручную чтобы избежать нормализации SDK
-                const publicUrl = `${appConfig.SUPABASE.URL}/storage/v1/object/public/audio/${filePath}`;
-                
-                // Сохраняем информацию о файле в базу данных
-                const audioFileData = {
-                    file_name: fileName,
-                    file_path: filePath,
-                    file_url: publicUrl,
-                    file_size: blob.size,
-                    mime_type: blob.type,
-                    user_id: userId
-                };
-                
-                console.log('🔧 Inserting audio file data:', audioFileData);
-                
-                const { data: dbData, error: dbError } = await sbClient
-                    .from('audio_files')
-                    .insert(audioFileData)
-                    .select()
-                    .single();
-                
-                if (dbError) {
-                    console.error('Database save error:', dbError);
-                    // Файл загружен, но не записан в БД - это не критично
-                }
-                
-                const audioFileId = dbData?.id;
-                
-                // Связываем аудио с текущим фрагментом
-                if (audioFileId && currentSession.currentFragmentId) {
-                    await linkAudioToFragment(audioFileId, type);
-                }
-                
-                console.log('Audio saved successfully:', {
-                    fileName,
-                    publicUrl,
-                    size: blob.size,
-                    audioFileId
-                });
-                
-                return {
-                    fileName,
-                    publicUrl,
-                    filePath,
-                    audioFileId
-                };
-                
-            } catch (error) {
-                console.error('Supabase storage error:', error);
-                throw error;
-            }
-        }
-        
-        async function linkAudioToFragment(audioFileId, type) {
-            if (!sbClient || !currentSession.currentFragmentId) {
-                console.error('Cannot link audio: missing fragment');
-                return;
-            }
-            
-            try {
-                console.log('🔧 Linking audio to fragment:', { audioFileId, type, fragmentId: currentSession.currentFragmentId });
-                
+
+            await sbClient.storage.from('audio').upload(filePath, blob, { contentType: ct, upsert: false });
+
+            const publicUrl = `${appConfig.SUPABASE.URL}/storage/v1/object/public/audio/${filePath}`;
+
+            const { data: dbData } = await sbClient.from('audio_files').insert({
+                file_name: fileName, file_path: filePath, file_url: publicUrl,
+                file_size: blob.size, mime_type: blob.type, user_id: userId
+            }).select().single();
+
+            if (dbData?.id && currentSession.fragmentId) {
                 const updateData = {};
-                if (type === 'listen') {
-                    updateData.listen_audio_id = audioFileId;
-                    currentSession.listenAudioId = audioFileId;
-                } else if (type === 'sound') {
-                    updateData.sound_audio_id = audioFileId;
-                    currentSession.soundAudioId = audioFileId;
-                }
-                
-                const { data, error } = await sbClient
-                    .from('fragments')
-                    .update(updateData)
-                    .eq('id', currentSession.currentFragmentId)
-                    .select()
-                    .single();
-                
-                if (error) {
-                    console.error('Failed to link audio to fragment:', error);
-                    return;
-                }
-                
-                console.log('🔧 Audio linked to fragment:', data);
-                
-            } catch (error) {
-                console.error('Error linking audio to fragment:', error);
+                if (type === 'listen') updateData.listen_audio_id = dbData.id;
+                else updateData.sound_audio_id = dbData.id;
+                await sbClient.from('fragments').update(updateData).eq('id', currentSession.fragmentId);
             }
+        } catch (e) {
+            console.error('Audio save error:', e);
         }
-        
-        function createSilentAudio(type) {
-            // Create a simple silent audio blob
-            const audioContext = new (window.AudioContext || window.webkitAudioContext)();
-            const sampleRate = 44100;
-            const duration = 1;
-            const numFrames = sampleRate * duration;
-            const buffer = audioContext.createBuffer(1, numFrames, sampleRate);
-            
-            const blob = new Blob([buffer], { type: 'audio/wav' });
-            const url = URL.createObjectURL(blob);
-            
-            if (type === 'listen') {
-                currentListenUrl = url;
-                document.getElementById('listenAudio').src = url;
-                document.getElementById('listenAudio').classList.remove('hidden');
-                document.getElementById('soundBtn').classList.remove('hidden');
-            } else if (type === 'sound') {
-                currentSoundUrl = url;
-                document.getElementById('soundAudio').src = url;
-                document.getElementById('soundAudio').classList.remove('hidden');
-                document.getElementById('soundContinueBtn').classList.remove('hidden');
-            }
+    }
+
+    // =============================================
+    // UPLOAD FALLBACK
+    // =============================================
+
+    function handleUpload(input, type) {
+        const file = input.files[0];
+        if (!file) return;
+        const url = URL.createObjectURL(file);
+        if (type === 'listen') {
+            currentSession.listenBlob = file;
+            currentSession.listenBlobUrl = url;
+        } else {
+            currentSession.soundBlob = file;
+            currentSession.soundBlobUrl = url;
         }
-        
-        async function uploadAudio(input, type) {
-            const file = input.files[0];
-            if (!file) return;
-            
-            // Проверяем размер файла (максимум 10MB)
-            const maxSize = 10 * 1024 * 1024; // 10MB
-            if (file.size > maxSize) {
-                alert('File too large. Please choose a file smaller than 10MB.');
+        saveAudioAsync(file, type);
+        if (type === 'listen') finishListenPhase();
+        else finishSoundPhase();
+    }
+
+    // =============================================
+    // ARCHIVE (Sound Diary)
+    // =============================================
+
+    function toggleArchive() {
+        archiveOpen = !archiveOpen;
+        const list = document.getElementById('archiveList');
+        const text = document.getElementById('archiveToggleText');
+        if (archiveOpen) {
+            list.classList.remove('hidden');
+            text.textContent = 'sound diary ▾';
+            loadArchive();
+        } else {
+            list.classList.add('hidden');
+            text.textContent = 'sound diary';
+        }
+    }
+
+    async function loadArchive() {
+        const list = document.getElementById('archiveList');
+        list.innerHTML = '<div style="text-align:center; color:#a1a1aa; font-size:13px; padding:16px;">Loading...</div>';
+
+        if (!supabaseConnected) {
+            list.innerHTML = '<div style="text-align:center; color:#a1a1aa; font-size:13px; padding:16px;">Not connected</div>';
+            return;
+        }
+
+        try {
+            const { data: capsules } = await sbClient.from('capsules')
+                .select('id, created_at, initial_score_id, final_score_id')
+                .eq('user_id', currentUserId)
+                .order('created_at', { ascending: false })
+                .limit(30);
+
+            if (!capsules || capsules.length === 0) {
+                list.innerHTML = '<div style="text-align:center; color:#a1a1aa; font-size:13px; padding:16px;">No entries yet</div>';
                 return;
             }
-            
-            // Проверяем тип файла
-            const allowedTypes = ['audio/webm', 'audio/wav', 'audio/mp3', 'audio/m4a', 'audio/ogg'];
-            if (!allowedTypes.includes(file.type)) {
-                alert('Unsupported file type. Please use: WebM, WAV, MP3, M4A, or OGG.');
+
+            // Get fragments to check which have audio
+            const capIds = capsules.map(c => c.id);
+            const { data: frags } = await sbClient.from('fragments')
+                .select('capsule_id, listen_audio_id, sound_audio_id')
+                .in('capsule_id', capIds);
+
+            const capsWithAudio = new Set();
+            (frags || []).forEach(f => {
+                if (f.listen_audio_id || f.sound_audio_id) capsWithAudio.add(f.capsule_id);
+            });
+
+            const scoreIds = [...new Set([
+                ...capsules.map(c => c.initial_score_id),
+                ...capsules.map(c => c.final_score_id)
+            ].filter(Boolean))];
+
+            let scoreLookup = {};
+            if (scoreIds.length > 0) {
+                const { data: scores } = await sbClient.from('scores').select('id, text').in('id', scoreIds);
+                if (scores) scores.forEach(s => scoreLookup[s.id] = s.text);
+            }
+
+            const filtered = capsules.filter(c => capsWithAudio.has(c.id));
+            if (filtered.length === 0) {
+                list.innerHTML = '<div style="text-align:center; color:#a1a1aa; font-size:13px; padding:16px;">No entries with audio yet</div>';
                 return;
             }
-            
-            const url = URL.createObjectURL(file);
-            
-            // Показываем статус загрузки
-            const statusElement = type === 'listen' 
-                ? document.getElementById('recordingStatus')
-                : document.getElementById('soundRecordingStatus');
-            
-            if (statusElement) {
-                statusElement.textContent = 'Uploading audio file...';
-            }
-            
-            try {
-                // Сохраняем в Supabase Storage
-                await saveAudioToSupabase(file, type);
-                
-                if (statusElement) {
-                    statusElement.textContent = '✅ Audio file uploaded successfully';
-                }
-            } catch (error) {
-                console.error('Failed to upload audio file:', error);
-                if (statusElement) {
-                    statusElement.textContent = '⚠️ Audio loaded locally (upload failed)';
-                }
-            }
-            
-            // Обновляем UI
-            if (type === 'listen') {
-                currentListenUrl = url;
-                document.getElementById('listenAudio').src = url;
-                document.getElementById('listenAudio').classList.remove('hidden');
-                document.getElementById('soundBtn').classList.remove('hidden');
-            } else if (type === 'sound') {
-                currentSoundUrl = url;
-                document.getElementById('soundAudio').src = url;
-                document.getElementById('soundAudio').classList.remove('hidden');
-                document.getElementById('soundContinueBtn').classList.remove('hidden');
-            }
-        }
-        
-        function updateSessionSummary() {
-            const fragmentsList = document.getElementById('fragmentsList');
-            fragmentsList.innerHTML = '';
-            
-            fragments.forEach((frag, i) => {
-                const fragmentDiv = document.createElement('div');
-                fragmentDiv.className = 'fragment';
-                fragmentDiv.innerHTML = `
-                    <div class="fragment-title">Cycle ${frag.cycleNumber} — ${frag.listenSource}</div>
-                    <div class="fragment-audio">
-                        <div>
-                            <div class="audio-label">Listen</div>
-                            <audio controls class="audio-player" src="${frag.listenUrl}"></audio>
-                        </div>
-                        <div>
-                            <div class="audio-label">Sound</div>
-                            <audio controls class="audio-player" src="${frag.soundUrl}"></audio>
-                        </div>
+
+            list.innerHTML = filtered.map(c => {
+                const date = new Date(c.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+                const initial = scoreLookup[c.initial_score_id] || '';
+                const final_ = scoreLookup[c.final_score_id] || '';
+                return `
+                    <div class="archive-item" onclick="openArchiveDetail('${c.id}')">
+                        <div class="archive-date">${date}</div>
+                        ${initial ? `<div class="archive-score">"${initial.substring(0, 50)}${initial.length > 50 ? '...' : ''}"</div>` : ''}
+                        ${final_ ? `<div class="archive-your-score">→ "${final_.substring(0, 50)}${final_.length > 50 ? '...' : ''}"</div>` : ''}
                     </div>
                 `;
-                fragmentsList.appendChild(fragmentDiv);
-            });
+            }).join('');
+
+        } catch (e) {
+            console.error('Archive load error:', e);
+            list.innerHTML = '<div style="text-align:center; color:#dc2626; font-size:13px; padding:16px;">Failed to load</div>';
         }
-        
-        // Fallback to localStorage if Supabase fails
-        function saveCapsuleToLocal(capsule) {
-            const all = JSON.parse(localStorage.getItem('lsrc_capsules_v4') || '[]');
-            const idNum = (all[all.length - 1]?.idNum || 0) + 1;
-            const saved = { ...capsule, id: Math.random().toString(36).slice(2, 10), idNum };
-            all.push(saved);
-            localStorage.setItem('lsrc_capsules_v4', JSON.stringify(all));
-            return saved;
+    }
+
+    async function openArchiveDetail(capsuleId) {
+        if (!supabaseConnected) return;
+        try {
+            const { data: capsule } = await sbClient.from('capsules')
+                .select('id, created_at, initial_score_id, final_score_id')
+                .eq('id', capsuleId).single();
+
+            let scoreText = '', finalScoreText = '';
+            const sIds = [capsule.initial_score_id, capsule.final_score_id].filter(Boolean);
+            if (sIds.length > 0) {
+                const { data: scores } = await sbClient.from('scores').select('id, text').in('id', sIds);
+                if (scores) {
+                    const ini = scores.find(s => s.id === capsule.initial_score_id);
+                    const fin = scores.find(s => s.id === capsule.final_score_id);
+                    if (ini) scoreText = ini.text;
+                    if (fin) finalScoreText = fin.text;
+                }
+            }
+
+            const { data: frags } = await sbClient.from('fragments')
+                .select('id, listen_audio_id, sound_audio_id')
+                .eq('capsule_id', capsuleId).limit(1);
+
+            let listenUrl = null, soundUrl = null, reflectionText = '';
+            if (frags && frags.length > 0) {
+                const f = frags[0];
+                const audioIds = [f.listen_audio_id, f.sound_audio_id].filter(Boolean);
+                if (audioIds.length > 0) {
+                    const { data: audios } = await sbClient.from('audio_files').select('id, file_url').in('id', audioIds);
+                    if (audios) {
+                        const la = audios.find(a => a.id === f.listen_audio_id);
+                        const sa = audios.find(a => a.id === f.sound_audio_id);
+                        if (la) listenUrl = la.file_url;
+                        if (sa) soundUrl = sa.file_url;
+                    }
+                }
+                const { data: refs } = await sbClient.from('reflections').select('text').eq('fragment_id', f.id).limit(1);
+                if (refs && refs.length > 0) reflectionText = refs[0].text;
+            }
+
+            window._archiveDetailData = { capsule, scoreText, finalScoreText, reflectionText, listenUrl, soundUrl };
+            goToPhase('archiveDetail');
+        } catch (e) {
+            console.error('Archive detail error:', e);
         }
+    }
+
+    // =============================================
+    // UTILS
+    // =============================================
+
+    function getDaysAgo(dateStr) {
+        if (!dateStr) return '';
+        const diff = Date.now() - new Date(dateStr).getTime();
+        const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+        if (days === 0) return 'today';
+        if (days === 1) return 'yesterday';
+        return `${days} days ago`;
+    }
+
     </script>
 </body>
 </html>

@@ -1,0 +1,8 @@
+{
+  "name": "lsrc-miniapp",
+  "version": "2.0.0",
+  "private": true,
+  "dependencies": {
+    "openai": "^4.73.0"
+  }
+}
