@@ -555,7 +555,7 @@
     let inTelegram = false;
     let currentUserId = null;
 
-    let currentPhase = 'home';
+    let currentPhase = 'landing';
     let currentScore = null;
     let currentSession = {
         capsuleId: null,
@@ -691,6 +691,8 @@
 
     function renderPhase() {
         switch (currentPhase) {
+            case 'landing': return renderLanding();
+            case 'intro': return renderIntro();
             case 'home': return renderHome();
             case 'listen': return renderListen();
             case 'playback': return renderPlayback();
@@ -701,25 +703,32 @@
             case 'about': return renderAbout();
             case 'guide': return renderGuide();
             case 'archiveDetail': return renderArchiveDetail();
-            default: return renderHome();
+            default: return renderLanding();
         }
     }
 
-    function renderHome() {
-        const scoreText = currentScore?.text || 'Loading...';
-        const daysAgo = currentScore?.created_at ? getDaysAgo(currentScore.created_at) : '';
-        const meta = daysAgo ? `Created by a human ${daysAgo}.` : '';
-        const listenCount = currentScore?.usage_count > 1 ? `${currentScore.usage_count} people listened to this` : '';
-
+    function renderLanding() {
         return `
-            <div class="score-display">"${scoreText}"</div>
-            ${meta ? `<div class="score-meta">${meta}</div>` : ''}
-            ${listenCount ? `<div class="listen-count">${listenCount}</div>` : ''}
-            <button class="btn-listen" onclick="startFlow()">Listen</button>
-            <div class="explain-toggle" onclick="toggleHomeGuide()" style="margin-top: 20px;">
-                <span id="homeGuideToggle">what awaits you</span>
+            <div style="margin-bottom: 32px;">
+                <div style="font-size: 36px; font-weight: 700; letter-spacing: 0.15em; color: #18181b;">LSRC</div>
+                <div style="font-size: 14px; color: #71717a; margin-top: 4px; letter-spacing: 0.05em;">Listen. Sound. Reflect. Create.</div>
             </div>
-            <div id="homeGuideContent" class="explain-content hidden">
+            <div style="max-width: 300px; text-align: left; margin-bottom: 32px;">
+                <div style="font-size: 15px; color: #3f3f46; margin-bottom: 14px;">Stuck with no ideas?<br><strong>Press Listen.</strong></div>
+                <div style="font-size: 15px; color: #3f3f46; margin-bottom: 14px;">Need clarity before a decision?<br><strong>Press Listen.</strong></div>
+                <div style="font-size: 15px; color: #3f3f46;">Want to hear what you've been missing?<br><strong>Press Listen.</strong></div>
+            </div>
+            <div style="font-size: 13px; color: #a1a1aa; max-width: 280px; margin-bottom: 32px;">
+                A 20-second protocol that resets your perception through sound.
+            </div>
+            <button class="btn-listen" onclick="goToPhase('intro')">Begin</button>
+        `;
+    }
+
+    function renderIntro() {
+        return `
+            <div class="phase-label" style="margin-bottom: 20px;">what awaits you</div>
+            <div class="explain-content" style="margin-bottom: 24px;">
                 <div class="explain-item">
                     <div class="explain-phase">Listen</div>
                     <div class="explain-text">Your microphone will record the world around you. Just be present and listen.</div>
@@ -741,19 +750,22 @@
                     <div class="explain-text">Write a score — a listening instruction for the next person. Your text enters the flow and becomes someone else's starting point.</div>
                 </div>
             </div>
+            <button class="btn-listen" onclick="goToPhase('home')">Let's go</button>
         `;
     }
 
-    function toggleHomeGuide() {
-        const content = document.getElementById('homeGuideContent');
-        const toggle = document.getElementById('homeGuideToggle');
-        if (content.classList.contains('hidden')) {
-            content.classList.remove('hidden');
-            toggle.textContent = 'what awaits you ▾';
-        } else {
-            content.classList.add('hidden');
-            toggle.textContent = 'what awaits you';
-        }
+    function renderHome() {
+        const scoreText = currentScore?.text || 'Loading...';
+        const daysAgo = currentScore?.created_at ? getDaysAgo(currentScore.created_at) : '';
+        const meta = daysAgo ? `Created by a human ${daysAgo}.` : '';
+        const listenCount = currentScore?.usage_count > 1 ? `${currentScore.usage_count} people listened to this` : '';
+
+        return `
+            <div class="score-display">"${scoreText}"</div>
+            ${meta ? `<div class="score-meta">${meta}</div>` : ''}
+            ${listenCount ? `<div class="listen-count">${listenCount}</div>` : ''}
+            <button class="btn-listen" onclick="startFlow()">Listen</button>
+        `;
     }
 
     function renderListen() {
